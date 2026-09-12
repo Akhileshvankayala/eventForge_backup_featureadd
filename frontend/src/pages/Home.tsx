@@ -177,7 +177,71 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-const bars = [42, 55, 49, 69, 61, 78, 73, 92, 84, 71, 88, 96];
+type OverviewVelocity = {
+  totalThisMonth: number;
+  pctChange: number;
+  daily: { date: string; count: number }[];
+};
+
+type OverviewNextEvent = {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  venueName: string;
+  city: string;
+  daysUntil: number;
+  registered: number;
+  capacity: number;
+} | null;
+
+type OverviewRunSession = { time: string; title: string; room: string; type: string };
+
+type OverviewResponse = {
+  velocity: OverviewVelocity;
+  nextEvent: OverviewNextEvent;
+  runOfShow: { dateLabel: string; sessions: OverviewRunSession[] };
+  stats: {
+    statusLabel: string;
+    statusDetail: string;
+    attentionCount: number;
+    attentionDetail: string;
+    updatedLabel: string;
+    updatedDetail: string;
+  };
+  totals: { events: number; attendees: number; sessions: number };
+};
+
+function formatCount(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
+function daysUntilLabel(days: number): string {
+  if (days <= 0) return "Today";
+  if (days === 1) return "1 day";
+  return `${days} days`;
+}
+
+function shortDayLabel(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function barHeights(daily: { date: string; count: number }[]): number[] {
+  const max = Math.max(1, ...daily.map((d) => d.count));
+  return daily.map((d) => Math.max(8, Math.round((d.count / max) * 96)));
+}
+
+function overviewRunToDisplay(items: OverviewRunSession[]): DisplaySession[] {
+  return items.slice(0, 5).map((session, index) => ({
+    time: session.time,
+    title: session.title,
+    room: session.room,
+    type: session.type,
+    color: SESSION_COLORS[index % SESSION_COLORS.length],
+  }));
+}
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -201,10 +265,13 @@ export default function Home() {
   const userRoleLabel = roleLabel(storedUser.role);
 
   const [events, setEvents] = useState<DisplayEvent[]>([]);
-  const [sessions, setSessions] = useState<DisplaySession[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
   const [dataError, setDataError] = useState("");
+
+  const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState("");
+  const [overviewAttempt, setOverviewAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,22 +298,39 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false;
-    setSessionsLoading(true);
+    setOverviewLoading(true);
+    setOverviewError("");
     api
-      .get<ApiSession[]>("/api/sessions")
-      .then((items) => {
+      .get<OverviewResponse>("/api/analytics/overview")
+      .then((data) => {
         if (cancelled) return;
-        setSessions(toDisplaySessions(Array.isArray(items) ? items : []));
-        setSessionsLoading(false);
+        setOverview(data);
+        setOverviewLoading(false);
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
-        setSessionsLoading(false);
+        setOverviewError(error instanceof Error ? error.message : "Could not load analytics.");
+        setOverviewLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [overviewAttempt]);
+
+  const retryOverview = () => setOverviewAttempt((n) => n + 1);
+
+  const velocityBars = useMemo(
+    () => (overview ? barHeights(overview.velocity.daily) : []),
+    [overview],
+  );
+  const velocityUp = (overview?.velocity.pctChange ?? 0) >= 0;
+  const runSessions: DisplaySession[] = useMemo(
+    () => overviewRunToDisplay(overview?.runOfShow.sessions ?? []),
+    [overview],
+  );
+  const nextEv = overview?.nextEvent ?? null;
+  const nextEvStart = nextEv ? new Date(nextEv.startDate) : null;
+  const nextEvValid = nextEvStart && !Number.isNaN(nextEvStart.getTime()) ? nextEvStart : null;
 
   const handleLogout = () => {
     try {
@@ -382,14 +466,14 @@ export default function Home() {
             <div className="clay-card group relative min-h-[250px] overflow-hidden rounded-[26px] bg-ink p-6 text-white shadow-[0_20px_40px_rgba(14,40,49,0.18)] transition hover:-translate-y-1">
               <div className="absolute -right-12 -top-20 size-48 rounded-full border-[28px] border-white/[0.05] transition duration-500 group-hover:scale-110" />
               <div className="absolute -bottom-20 -left-16 size-48 rounded-full border-[24px] border-coral/20" />
-              <div className="relative flex items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Your next big thing</p><h2 className="mt-3 max-w-[240px] font-display text-[28px] font-bold leading-[0.98] tracking-[-0.06em]">{events[0]?.title || (eventsLoading ? "Loading…" : "No events yet")}</h2></div><span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/70">11 days</span></div>
-              <div className="relative mt-8 flex items-end justify-between"><div><p className="text-[12px] font-semibold text-white/60">{events[0] ? `${events[0].month} ${events[0].date}` : "Date TBA"}</p><p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/40"><MapPin className="size-3" /> {events[0]?.location || "Venue to be announced"}</p></div><button aria-label="View Future of Work Summit details" onClick={() => setShowEventDetails(true)} className="grid size-9 place-items-center rounded-full bg-coral text-ink transition hover:rotate-[-45deg]"><ArrowUpRight className="size-4" /></button></div>
+              <div className="relative flex items-start justify-between">{overviewLoading ? (<div className="w-full animate-pulse"><div className="h-3 w-32 rounded-full bg-white/15" /><div className="mt-3 h-8 w-48 rounded-[10px] bg-white/15" /></div>) : overviewError ? (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Your next big thing</p><p className="mt-3 max-w-[240px] text-[13px] font-semibold leading-5 text-white/70">Could not load the spotlight event.</p><button onClick={retryOverview} className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/80 transition hover:bg-white/15">Retry</button></div>) : nextEv ? (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Your next big thing</p><h2 className="mt-3 max-w-[240px] font-display text-[28px] font-bold leading-[0.98] tracking-[-0.06em]">{nextEv.title}</h2></div>) : (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">Your next big thing</p><h2 className="mt-3 max-w-[240px] font-display text-[28px] font-bold leading-[0.98] tracking-[-0.06em]">No events yet</h2></div>)}<span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/70">{overviewLoading ? "…" : nextEv ? daysUntilLabel(nextEv.daysUntil) : "—"}</span></div>
+              <div className="relative mt-8 flex items-end justify-between">{overviewLoading ? (<div className="w-full animate-pulse"><div className="h-3 w-24 rounded-full bg-white/15" /><div className="mt-2 h-3 w-40 rounded-full bg-white/10" /></div>) : nextEv && nextEvValid ? (<div><p className="text-[12px] font-semibold text-white/60">{nextEvValid.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {nextEv.registered.toLocaleString("en-US")} registered</p><p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/40"><MapPin className="size-3" /> {nextEv.venueName}{nextEv.city ? ` · ${nextEv.city}` : ""}</p></div>) : (<div><p className="text-[12px] font-semibold text-white/60">Date TBA</p><p className="mt-1 flex items-center gap-1.5 text-[11px] text-white/40"><MapPin className="size-3" /> Venue to be announced</p></div>)}<button aria-label="View event details" onClick={() => setShowEventDetails(true)} className="grid size-9 place-items-center rounded-full bg-coral text-ink transition hover:rotate-[-45deg]"><ArrowUpRight className="size-4" /></button></div>
             </div>
 
             <div className="glass-card rounded-[26px] p-5 shadow-[0_14px_34px_rgba(47,59,61,0.07)] sm:p-6">
-              <div className="flex items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Registration velocity</p><div className="mt-2 flex items-end gap-3"><span className="font-display text-[34px] font-bold tracking-[-0.07em]">1,248</span><span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-[#e4f2e9] px-2 py-1 text-[10px] font-black text-[#39825f]"><ArrowUpRight className="size-3" /> 18.6%</span></div><p className="mt-1 text-[11px] text-ink/45">tickets sold this month</p></div><button onClick={() => notify("Analytics exported")} className="grid size-9 place-items-center rounded-full bg-white/80 text-ink/45 transition hover:bg-white hover:text-ink"><Download className="size-4" /></button></div>
-              <div className="mt-7 flex h-[94px] items-end gap-1.5 sm:gap-2">{bars.map((bar, index) => <div key={index} className="group relative flex h-full flex-1 items-end"><div className={`w-full rounded-t-[6px] transition duration-300 group-hover:opacity-80 ${index === bars.length - 1 ? "bg-coral" : index > 8 ? "bg-[#d2e2d8]" : "bg-[#e9eeea]"}`} style={{ height: `${bar}%` }} /></div>)}</div>
-              <div className="mt-3 flex justify-between text-[9px] font-bold uppercase tracking-[0.13em] text-ink/30"><span>Aug 28</span><span>Sep 07</span></div>
+              <div className="flex items-start justify-between">{overviewLoading ? (<div className="animate-pulse"><div className="h-3 w-36 rounded-full bg-ink/10" /><div className="mt-3 h-9 w-28 rounded-[10px] bg-ink/10" /><div className="mt-2 h-3 w-40 rounded-full bg-ink/5" /></div>) : overviewError ? (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Registration velocity</p><p className="mt-2 text-[12px] font-semibold text-ink/55">Could not load analytics.</p><button onClick={retryOverview} className="mt-2 rounded-full bg-ink px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-[#264c59]">Retry</button></div>) : (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Registration velocity</p><div className="mt-2 flex items-end gap-3"><span className="font-display text-[34px] font-bold tracking-[-0.07em]">{formatCount(overview?.velocity.totalThisMonth ?? 0)}</span><span className={`mb-1.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${velocityUp ? "bg-[#e4f2e9] text-[#39825f]" : "bg-[#fbe7e1] text-[#a65745]"}`}>{velocityUp ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />} {Math.abs(overview?.velocity.pctChange ?? 0).toFixed(1)}%</span></div><p className="mt-1 text-[11px] text-ink/45">tickets sold this month</p></div>)}<button onClick={() => notify("Analytics exported")} className="grid size-9 place-items-center rounded-full bg-white/80 text-ink/45 transition hover:bg-white hover:text-ink"><Download className="size-4" /></button></div>
+              {overviewLoading ? (<div className="mt-7 flex h-[94px] items-end gap-1.5 sm:gap-2">{Array.from({ length: 14 }).map((_, index) => <div key={index} className="flex h-full flex-1 animate-pulse items-end"><div className="w-full rounded-t-[6px] bg-ink/8" style={{ height: `${24 + ((index * 37) % 60)}%` }} /></div>)}</div>) : overviewError ? (<div className="mt-7 flex h-[94px] items-center justify-center rounded-[14px] border border-dashed border-ink/10 text-[11px] text-ink/45">Chart unavailable</div>) : (<div className="mt-7 flex h-[94px] items-end gap-1.5 sm:gap-2">{velocityBars.map((bar, index) => <div key={overview?.velocity.daily[index]?.date ?? index} className="group relative flex h-full flex-1 items-end"><div className={`w-full rounded-t-[6px] transition duration-300 group-hover:opacity-80 ${index === velocityBars.length - 1 ? "bg-coral" : index > 8 ? "bg-[#d2e2d8]" : "bg-[#e9eeea]"}`} style={{ height: `${bar}%` }} /></div>)}</div>)}
+              <div className="mt-3 flex justify-between text-[9px] font-bold uppercase tracking-[0.13em] text-ink/30"><span>{overview?.velocity.daily[0] ? shortDayLabel(overview.velocity.daily[0].date) : "—"}</span><span>{overview?.velocity.daily.length ? shortDayLabel(overview.velocity.daily[overview.velocity.daily.length - 1].date) : "—"}</span></div>
             </div>
 
             <div className="robot-card relative min-h-[250px] overflow-hidden rounded-[26px] border border-[#f6c8b5]/35 bg-[radial-gradient(circle_at_78%_18%,rgba(255,255,255,.56),transparent_28%),linear-gradient(135deg,#f8d5c7_0%,#f6c8b5_52%,#efb5a7_100%)] shadow-[0_18px_38px_rgba(174,106,84,0.16)]">
@@ -408,7 +492,7 @@ export default function Home() {
             </div>
 
 
-            <div className="glass-card rounded-[26px] p-5 shadow-[0_14px_34px_rgba(47,59,61,0.06)] sm:p-6"><div className="flex items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Next on the run of show</p><h2 className="mt-2 font-display text-[22px] font-bold tracking-[-0.055em]">Friday, Sep 18</h2></div><button onClick={() => notify("Schedule view opened")} className="grid size-9 place-items-center rounded-full bg-white/80 text-ink/45 hover:text-ink"><ListFilter className="size-4" /></button></div><div className="mt-5 space-y-3">{sessionsLoading ? <div className="py-8 text-center text-[11px] text-ink/45">Loading sessions…</div> : sessions.length === 0 ? <div className="py-8 text-center text-[11px] text-ink/45">No sessions scheduled yet.</div> : sessions.map((session) => <button key={session.time} onClick={() => notify(`${session.title} selected`)} className="group flex w-full items-center gap-3 text-left"><span className="w-[42px] text-[10px] font-black text-ink/40">{session.time}</span><span className="h-10 w-1 rounded-full" style={{ backgroundColor: session.color }} /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{session.title}</span><span className="mt-0.5 block text-[10px] text-ink/45">{session.room} · {session.type}</span></span><ChevronRight className="size-3.5 text-ink/25 transition group-hover:translate-x-1" /></button>)}</div></div>
+            <div className="glass-card rounded-[26px] p-5 shadow-[0_14px_34px_rgba(47,59,61,0.06)] sm:p-6"><div className="flex items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Next on the run of show</p><h2 className="mt-2 font-display text-[22px] font-bold tracking-[-0.055em]">{overviewLoading ? "Loading…" : overview?.runOfShow.dateLabel ?? "No sessions scheduled"}</h2></div><button onClick={() => notify("Schedule view opened")} className="grid size-9 place-items-center rounded-full bg-white/80 text-ink/45 hover:text-ink"><ListFilter className="size-4" /></button></div><div className="mt-5 space-y-3">{overviewLoading ? <div className="space-y-3 animate-pulse">{[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3"><div className="h-3 w-[42px] rounded-full bg-ink/10" /><div className="h-10 w-1 rounded-full bg-ink/10" /><div className="flex-1"><div className="h-3 w-3/4 rounded-full bg-ink/10" /><div className="mt-2 h-2.5 w-1/2 rounded-full bg-ink/5" /></div></div>)}</div> : overviewError ? <div className="py-8 text-center text-[11px] text-ink/45">Could not load the schedule. <button onClick={retryOverview} className="font-bold text-ink underline underline-offset-2">Retry</button></div> : runSessions.length === 0 ? <div className="py-8 text-center text-[11px] text-ink/45">No sessions scheduled yet.</div> : runSessions.map((session, index) => <button key={`${session.time}-${session.title}-${index}`} onClick={() => notify(`${session.title} selected`)} className="group flex w-full items-center gap-3 text-left"><span className="w-[42px] text-[10px] font-black text-ink/40">{session.time}</span><span className="h-10 w-1 rounded-full" style={{ backgroundColor: session.color }} /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{session.title}</span><span className="mt-0.5 block text-[10px] text-ink/45">{session.room} · {session.type}</span></span><ChevronRight className="size-3.5 text-ink/25 transition group-hover:translate-x-1" /></button>)}</div></div>
           </section>
 
         </div>
@@ -428,7 +512,6 @@ export default function Home() {
   );
 }
 
-void ArrowDownRight;
 void Check;
 void Megaphone;
 void LifeBuoy;

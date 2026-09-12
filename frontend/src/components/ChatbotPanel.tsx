@@ -14,6 +14,12 @@ const GENERATE_QUICK_ACTIONS: QuickAction[] = [
   { label: "Summarize session", prompt: "Create a concise session summary for a 45-minute workshop on building design systems at scale. Include key takeaways and who should attend.", variant: "outline" },
 ];
 
+const ASK_QUICK_ACTIONS: QuickAction[] = [
+  { label: "What can you see?", prompt: "What events and data can you see for me right now?", variant: "outline" },
+  { label: "How do I publish?", prompt: "How do I publish my event so attendees can find it?", variant: "outline" },
+  { label: "Check-in help", prompt: "Why would attendee check-in be refused?", variant: "outline" },
+];
+
 const RECOMMEND_QUICK_ACTIONS: QuickAction[] = [
   { label: "Recommend based on interests", prompt: "Recommend 5 sessions for someone interested in AI, leadership, and product strategy.", variant: "outline" },
   { label: "Beginner-friendly picks", prompt: "Suggest 4 accessible, beginner-friendly sessions for first-time conference attendees.", variant: "outline" },
@@ -44,9 +50,13 @@ function buildRecommendPayload(prompt: string, sessions?: Array<{ title: string;
 }
 
 async function callAiEndpoint(url: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("eventforge_token") : null;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(payload),
     signal,
   });
@@ -105,7 +115,7 @@ export default function ChatbotPanel({
   ]);
   const [input, setInput] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [mode, setMode] = useState<"generate" | "recommend">("generate");
+  const [mode, setMode] = useState<"generate" | "recommend" | "ask">("generate");
   const [expanded, setExpanded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -143,7 +153,14 @@ export default function ChatbotPanel({
       const timeout = setTimeout(() => controller.abort(), 12000);
 
       try {
-        if (mode === "recommend") {
+        if (mode === "ask") {
+          try {
+            result = await callAiEndpoint(`${AI_BASE_URL}/ask`, { question: trimmed }, controller.signal);
+            usedRealApi = true;
+          } catch {
+            result = await mockGenerate(trimmed);
+          }
+        } else if (mode === "recommend") {
           try {
             const payload = buildRecommendPayload(trimmed, sessions.length ? sessions : undefined);
             result = await callAiEndpoint(`${AI_BASE_URL}/recommend`, payload, controller.signal);
@@ -188,9 +205,12 @@ export default function ChatbotPanel({
   });
 
   const typedMessages = messages.filter((m) => m.role !== "system");
-  const quickActions = mode === "recommend" || !attendeeMode
-    ? GENERATE_QUICK_ACTIONS
-    : RECOMMEND_QUICK_ACTIONS;
+  const quickActions =
+    mode === "ask"
+      ? ASK_QUICK_ACTIONS
+      : mode === "recommend" || !attendeeMode
+        ? GENERATE_QUICK_ACTIONS
+        : RECOMMEND_QUICK_ACTIONS;
 
   return (
     <>
@@ -239,9 +259,20 @@ export default function ChatbotPanel({
             </div>
           </div>
 
-          {/* Mode toggle (attendee mode) */}
-          {attendeeMode && (
-            <div className="flex border-b border-ink/8 bg-ink/[0.02] px-4 py-2">
+          {/* Mode toggle */}
+          <div className="flex border-b border-ink/8 bg-ink/[0.02] px-4 py-2">
+            <button
+              type="button"
+              onClick={() => setMode("ask")}
+              className={`flex-1 rounded-full px-3 py-1 text-[10px] font-bold transition ${
+                mode === "ask"
+                  ? "bg-coral text-ink shadow-[0_6px_12px_rgba(240,123,103,0.2)]"
+                  : "bg-white/60 text-ink/55 hover:bg-white/80"
+              }`}
+            >
+              Ask EventForge
+            </button>
+            {attendeeMode && (
               <button
                 type="button"
                 onClick={() => setMode("recommend")}
@@ -253,19 +284,19 @@ export default function ChatbotPanel({
               >
                 Recommendations
               </button>
-              <button
-                type="button"
-                onClick={() => setMode("generate")}
-                className={`flex-1 rounded-full px-3 py-1 text-[10px] font-bold transition ${
-                  mode === "generate"
-                    ? "bg-coral text-ink shadow-[0_6px_12px_rgba(240,123,103,0.2)]"
-                    : "bg-white/60 text-ink/55 hover:bg-white/80"
-                }`}
-              >
-                Draft content
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={() => setMode("generate")}
+              className={`flex-1 rounded-full px-3 py-1 text-[10px] font-bold transition ${
+                mode === "generate"
+                  ? "bg-coral text-ink shadow-[0_6px_12px_rgba(240,123,103,0.2)]"
+                  : "bg-white/60 text-ink/55 hover:bg-white/80"
+              }`}
+            >
+              Draft content
+            </button>
+          </div>
 
           {/* Quick actions */}
           <div className="flex flex-wrap gap-1.5 border-b border-ink/8 px-4 py-2.5">

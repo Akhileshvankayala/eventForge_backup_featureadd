@@ -7,6 +7,7 @@ import "dotenv/config";
 
 import { connectDB, closeDB } from "./db.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
+import { refreshKnowledgePdf } from "./lib/knowledgePdf.js";
 import {
   authRoutes,
   userRoutes,
@@ -22,6 +23,7 @@ import {
   aiRoutes,
   checkinRoutes,
   publicRoutes,
+  analyticsRoutes,
 } from "./routes/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,6 +42,18 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true }));
 
   // ─── API Routes ─────────────────────────────────────────────────────────────
+  // After any successful data mutation, refresh the knowledge PDF in the
+  // background so the copilot's knowledge base tracks live data.
+  const MUTATING = new Set(["POST", "PATCH", "PUT", "DELETE"]);
+  const SKIP_REFRESH = ["/api/ai/knowledge/refresh", "/api/auth/"];
+  app.use("/api", (req, res, next) => {
+    res.on("finish", () => {
+      if (!MUTATING.has(req.method) || res.statusCode >= 400) return;
+      if (SKIP_REFRESH.some((p) => req.path.startsWith(p.replace("/api", "")) || ("/api" + req.path).startsWith(p))) return;
+      refreshKnowledgePdf().catch((err) => console.error("Knowledge PDF refresh failed:", err));
+    });
+    next();
+  });
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/events", eventRoutes);
@@ -54,6 +68,7 @@ async function startServer() {
   app.use("/api/ai", aiRoutes);
   app.use("/api/checkin", checkinRoutes);
   app.use("/api/public", publicRoutes);
+  app.use("/api/analytics", analyticsRoutes);
 
   // ─── Static file serving + SPA fallback (before 404 handler) ──────────────────
   const staticPath =

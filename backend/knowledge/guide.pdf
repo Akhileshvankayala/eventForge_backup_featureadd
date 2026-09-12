@@ -1,0 +1,213 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R 9 0 R 11 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Length 3361 >>
+stream
+BT
+/F1 22 Tf 1 0 0 1 56 786.0 Tm (EventForge  Knowledge Base) Tj
+/F1 10 Tf 1 0 0 1 56 749.0 Tm (EventForge Knowledge Guide) Tj
+/F1 10 Tf 1 0 0 1 56 734.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 718.0 Tm (This document is the static half of the EventForge AI knowledge base. It) Tj
+/F1 10 Tf 1 0 0 1 56 705.0 Tm (is) Tj
+/F1 10 Tf 1 0 0 1 56 690.0 Tm (exported to guide.pdf \(run node backend/knowledge/build-pdf.mjs\). The) Tj
+/F1 10 Tf 1 0 0 1 56 675.0 Tm (dynamic half is retrieved live from the database, scoped to the asking) Tj
+/F1 10 Tf 1 0 0 1 56 662.0 Tm (user ) Tj
+/F1 10 Tf 1 0 0 1 56 647.0 Tm (organizers see their own events, attendees see published events plus) Tj
+/F1 10 Tf 1 0 0 1 56 634.0 Tm (their own) Tj
+/F1 10 Tf 1 0 0 1 56 619.0 Tm (registrations, admins see everything.) Tj
+/F1 10 Tf 1 0 0 1 56 604.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 588.0 Tm (What is EventForge) Tj
+/F1 10 Tf 1 0 0 1 56 573.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 557.0 Tm (EventForge is a corporate event and conference management platform.) Tj
+/F1 10 Tf 1 0 0 1 56 544.0 Tm (Companies) Tj
+/F1 10 Tf 1 0 0 1 56 529.0 Tm (and event agencies plan conferences, workshops, exhibitions, and) Tj
+/F1 10 Tf 1 0 0 1 56 516.0 Tm (corporate) Tj
+/F1 10 Tf 1 0 0 1 56 501.0 Tm (events: event creation, venues, speakers, sessions, sponsors,) Tj
+/F1 10 Tf 1 0 0 1 56 488.0 Tm (registrations,) Tj
+/F1 10 Tf 1 0 0 1 56 473.0 Tm (tickets, staff assignments, and attendee communication.) Tj
+/F1 10 Tf 1 0 0 1 56 458.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 442.0 Tm (Roles) Tj
+/F1 10 Tf 1 0 0 1 56 427.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 411.0 Tm (" Platform Admin: manages organizations, subscription settings, users,) Tj
+/F1 10 Tf 1 0 0 1 56 398.0 Tm (and) Tj
+/F1 10 Tf 1 0 0 1 56 383.0 Tm (global policies. Sees all data.) Tj
+/F1 10 Tf 1 0 0 1 56 368.0 Tm (" Event Organizer: creates events and manages venues, sessions,) Tj
+/F1 10 Tf 1 0 0 1 56 355.0 Tm (speakers,) Tj
+/F1 10 Tf 1 0 0 1 56 340.0 Tm (sponsors, tickets, and event operations. Sees only their own events.) Tj
+/F1 10 Tf 1 0 0 1 56 325.0 Tm (" Event Staff: handles check-in, session attendance, venue operations,) Tj
+/F1 10 Tf 1 0 0 1 56 312.0 Tm (and) Tj
+/F1 10 Tf 1 0 0 1 56 297.0 Tm (attendee support.) Tj
+/F1 10 Tf 1 0 0 1 56 282.0 Tm (" Speaker: manages speaker profile, sessions, presentation material, and) Tj
+/F1 10 Tf 1 0 0 1 56 267.0 Tm (availability.) Tj
+/F1 10 Tf 1 0 0 1 56 252.0 Tm (" Attendee: registers for events, selects sessions, manages tickets, and) Tj
+/F1 10 Tf 1 0 0 1 56 237.0 Tm (provides feedback. Sees published events.) Tj
+/F1 10 Tf 1 0 0 1 56 222.0 Tm (" Sponsor: manages sponsorship packages, brand assets, and deliverables.) Tj
+/F1 10 Tf 1 0 0 1 56 207.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 191.0 Tm (Organizer workflow) Tj
+/F1 10 Tf 1 0 0 1 56 176.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 160.0 Tm (1. Create an event \(Events tab, Add event\): title, dates, venue,) Tj
+/F1 10 Tf 1 0 0 1 56 147.0 Tm (capacity.) Tj
+/F1 10 Tf 1 0 0 1 56 132.0 Tm (2. Publish it \(status draft ’ published\) so attendees can discover it.) Tj
+/F1 10 Tf 1 0 0 1 56 117.0 Tm (3. Add sessions \(Sessions tab\): title, room, start/end time. The system) Tj
+/F1 10 Tf 1 0 0 1 56 102.0 Tm (rejects overlapping sessions in the same room with a 409 conflict.) Tj
+/F1 10 Tf 1 0 0 1 56 87.0 Tm (4. Add ticket types \(Tickets tab\): price, capacity, sales window.) Tj
+ETendstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 3256 >>
+stream
+BT
+/F1 10 Tf 1 0 0 1 56 786.0 Tm (5. Review registrations \(Attendees tab\): approve pending attendees,) Tj
+/F1 10 Tf 1 0 0 1 56 773.0 Tm (manage) Tj
+/F1 10 Tf 1 0 0 1 56 758.0 Tm (the waitlist, cancel with automatic ticket quantity restore.) Tj
+/F1 10 Tf 1 0 0 1 56 743.0 Tm (6. Check in attendees on the day via QR code \(Check-in\).) Tj
+/F1 10 Tf 1 0 0 1 56 728.0 Tm (7. Track sponsors and deliverables \(Sponsors tab\).) Tj
+/F1 10 Tf 1 0 0 1 56 713.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 697.0 Tm (Attendee workflow) Tj
+/F1 10 Tf 1 0 0 1 56 682.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 666.0 Tm (1. Browse published events on the landing page or the attendee space.) Tj
+/F1 10 Tf 1 0 0 1 56 651.0 Tm (2. Book a ticket: pick an event and a ticket type. If a ticket is sold) Tj
+/F1 10 Tf 1 0 0 1 56 638.0 Tm (out) Tj
+/F1 10 Tf 1 0 0 1 56 623.0 Tm (you join the waitlist and get a waitlist position.) Tj
+/F1 10 Tf 1 0 0 1 56 608.0 Tm (3. Coupon codes starting with EVT give a 10 percent mock discount.) Tj
+/F1 10 Tf 1 0 0 1 56 593.0 Tm (4. View your registrations any time; each carries a QR code for) Tj
+/F1 10 Tf 1 0 0 1 56 580.0 Tm (check-in.) Tj
+/F1 10 Tf 1 0 0 1 56 565.0 Tm (5. Ask the AI copilot for session recommendations based on your) Tj
+/F1 10 Tf 1 0 0 1 56 552.0 Tm (interests.) Tj
+/F1 10 Tf 1 0 0 1 56 537.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 521.0 Tm (Registration states) Tj
+/F1 10 Tf 1 0 0 1 56 506.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 490.0 Tm (pending \(needs approval\), approved, rejected, waitlisted \(with) Tj
+/F1 10 Tf 1 0 0 1 56 477.0 Tm (position\),) Tj
+/F1 10 Tf 1 0 0 1 56 462.0 Tm (cancelled, completed, refunded. A duplicate registration for the same) Tj
+/F1 10 Tf 1 0 0 1 56 449.0 Tm (event) Tj
+/F1 10 Tf 1 0 0 1 56 434.0 Tm (and email is rejected with a 409 error.) Tj
+/F1 10 Tf 1 0 0 1 56 419.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 403.0 Tm (Tickets) Tj
+/F1 10 Tf 1 0 0 1 56 388.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 372.0 Tm (Ticket types have a total quantity and a remaining quantity that) Tj
+/F1 10 Tf 1 0 0 1 56 359.0 Tm (decrements) Tj
+/F1 10 Tf 1 0 0 1 56 344.0 Tm (on every approved purchase and restores on cancellation. Selling out) Tj
+/F1 10 Tf 1 0 0 1 56 331.0 Tm (moves) Tj
+/F1 10 Tf 1 0 0 1 56 316.0 Tm (new registrations to the waitlist automatically.) Tj
+/F1 10 Tf 1 0 0 1 56 301.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 285.0 Tm (Check-in) Tj
+/F1 10 Tf 1 0 0 1 56 270.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 254.0 Tm (Check-in is QR based. Only approved or completed registrations can check) Tj
+/F1 10 Tf 1 0 0 1 56 241.0 Tm (in.) Tj
+/F1 10 Tf 1 0 0 1 56 226.0 Tm (Scanning an already checked-in code returns a 409 conflict. Pending) Tj
+/F1 10 Tf 1 0 0 1 56 211.0 Tm (registrations are refused with a 403 until approved.) Tj
+/F1 10 Tf 1 0 0 1 56 196.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 180.0 Tm (Session scheduling) Tj
+/F1 10 Tf 1 0 0 1 56 165.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 149.0 Tm (Sessions belong to exactly one event and one room with a start and end) Tj
+/F1 10 Tf 1 0 0 1 56 136.0 Tm (time.) Tj
+/F1 10 Tf 1 0 0 1 56 121.0 Tm (Creating or moving a session into an overlapping room/time slot fails) Tj
+/F1 10 Tf 1 0 0 1 56 108.0 Tm (with a) Tj
+/F1 10 Tf 1 0 0 1 56 93.0 Tm (409 conflict listing the colliding sessions.) Tj
+/F1 10 Tf 1 0 0 1 56 78.0 Tm () Tj
+ETendstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 3254 >>
+stream
+BT
+/F1 10 Tf 1 0 0 1 56 786.0 Tm (AI Copilot) Tj
+/F1 10 Tf 1 0 0 1 56 771.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 755.0 Tm (The copilot has three modes. Generate drafts event descriptions, speaker) Tj
+/F1 10 Tf 1 0 0 1 56 740.0 Tm (bios, announcements, and session summaries. Recommend suggests sessions) Tj
+/F1 10 Tf 1 0 0 1 56 727.0 Tm (from) Tj
+/F1 10 Tf 1 0 0 1 56 712.0 Tm (your interests. Ask answers questions about EventForge and your own data) Tj
+/F1 10 Tf 1 0 0 1 56 697.0 Tm (\(events, registrations, tickets, schedules\) using retrieval over this) Tj
+/F1 10 Tf 1 0 0 1 56 684.0 Tm (guide) Tj
+/F1 10 Tf 1 0 0 1 56 669.0 Tm (plus live database records scoped to you.) Tj
+/F1 10 Tf 1 0 0 1 56 654.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 638.0 Tm (Analytics) Tj
+/F1 10 Tf 1 0 0 1 56 623.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 607.0 Tm (The organizer overview shows registration velocity \(tickets sold this) Tj
+/F1 10 Tf 1 0 0 1 56 594.0 Tm (month) Tj
+/F1 10 Tf 1 0 0 1 56 579.0 Tm (with change versus the prior 30 days and a 14-day daily chart\), the next) Tj
+/F1 10 Tf 1 0 0 1 56 566.0 Tm (big) Tj
+/F1 10 Tf 1 0 0 1 56 551.0 Tm (event with days remaining and venue, the run of show \(upcoming) Tj
+/F1 10 Tf 1 0 0 1 56 538.0 Tm (sessions\),) Tj
+/F1 10 Tf 1 0 0 1 56 523.0 Tm (and organization health: status, items needing attention \(pending) Tj
+/F1 10 Tf 1 0 0 1 56 510.0 Tm (approvals,) Tj
+/F1 10 Tf 1 0 0 1 56 495.0 Tm (sessions missing speakers, waitlisted attendees\), and last updated time.) Tj
+/F1 10 Tf 1 0 0 1 56 480.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 464.0 Tm (FAQ) Tj
+/F1 10 Tf 1 0 0 1 56 449.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 433.0 Tm (" How do I create an event? Open Events from the sidebar and choose Add) Tj
+/F1 10 Tf 1 0 0 1 56 418.0 Tm (event, then publish it when ready.) Tj
+/F1 10 Tf 1 0 0 1 56 403.0 Tm (" How do I manage ticket capacity? Open Tickets, select an event, and) Tj
+/F1 10 Tf 1 0 0 1 56 390.0 Tm (adjust) Tj
+/F1 10 Tf 1 0 0 1 56 375.0 Tm (its ticket type limits.) Tj
+/F1 10 Tf 1 0 0 1 56 360.0 Tm (" Can attendees join a waitlist? Yes. When capacity is reached, new) Tj
+/F1 10 Tf 1 0 0 1 56 345.0 Tm (registrations are added to the event waitlist with a position number.) Tj
+/F1 10 Tf 1 0 0 1 56 330.0 Tm (" Why can't an attendee see my event? Events are visible to attendees) Tj
+/F1 10 Tf 1 0 0 1 56 317.0 Tm (only) Tj
+/F1 10 Tf 1 0 0 1 56 302.0 Tm (when status is published and visibility is public.) Tj
+/F1 10 Tf 1 0 0 1 56 287.0 Tm (" Why is check-in refused? The registration must be approved first;) Tj
+/F1 10 Tf 1 0 0 1 56 274.0 Tm (pending) Tj
+/F1 10 Tf 1 0 0 1 56 259.0 Tm (or waitlisted registrations cannot check in.) Tj
+/F1 10 Tf 1 0 0 1 56 244.0 Tm (" What does 409 mean? A conflict: duplicate registration, overlapping) Tj
+/F1 10 Tf 1 0 0 1 56 229.0 Tm (session, or an already-used QR code.) Tj
+/F1 10 Tf 1 0 0 1 56 214.0 Tm () Tj
+/F1 10 Tf 1 0 0 1 56 198.0 Tm () Tj
+/F1 15 Tf 1 0 0 1 56 181.0 Tm (Live snapshot) Tj
+/F1 10 Tf 1 0 0 1 56 155.0 Tm (Generated: 2026-09-12T09:24:43.921Z) Tj
+/F1 10 Tf 1 0 0 1 56 140.0 Tm (" users: 4) Tj
+/F1 10 Tf 1 0 0 1 56 125.0 Tm (" events: 0) Tj
+/F1 10 Tf 1 0 0 1 56 110.0 Tm (" venues: 0) Tj
+/F1 10 Tf 1 0 0 1 56 95.0 Tm (" sessions: 1) Tj
+/F1 10 Tf 1 0 0 1 56 80.0 Tm (" speakers: 0) Tj
+ETendstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 210 >>
+stream
+BT
+/F1 10 Tf 1 0 0 1 56 786.0 Tm (" sponsors: 0) Tj
+/F1 10 Tf 1 0 0 1 56 771.0 Tm (" ticketTypes: 0) Tj
+/F1 10 Tf 1 0 0 1 56 756.0 Tm (" attendees: 0) Tj
+/F1 10 Tf 1 0 0 1 56 741.0 Tm (" announcements: 0) Tj
+ETendstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 10 0 R >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000134 00000 n 
+0000000204 00000 n 
+0000003616 00000 n 
+0000003742 00000 n 
+0000007049 00000 n 
+0000007175 00000 n 
+0000010480 00000 n 
+0000010606 00000 n 
+0000010867 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+10995
+%%EOF
