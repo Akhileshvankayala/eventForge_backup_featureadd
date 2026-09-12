@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -30,6 +32,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
+  // Fail fast in production on the dev JWT secret — tokens must be signed
+  // with a real secret (set JWT_SECRET env var).
+  if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET must be set in production");
+  }
+
   // Connect to MongoDB
   await connectDB();
 
@@ -37,9 +45,33 @@ async function startServer() {
   const server = createServer(app);
 
   // Middleware
+  app.use(helmet({ contentSecurityPolicy: false })); // CSP off: SPA uses inline runtime scripts
   app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: "100kb" }));
+  app.use(express.urlencoded({ extended: true, limit: "100kb" }));
+
+  // Brute-force guard on auth endpoints.
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many attempts, please try again later" },
+  });
+  app.use("/api/auth/", authLimiter);
+
+  // SEO/discoverability for the SPA shell.
+  app.get("/robots.txt", (_req, res) => {
+    res.type("text/plain").send("User-agent: *\nAllow: /\nAllow: /api/public/\nDisallow: /api/\n");
+  });
+  app.get("/sitemap.xml", (_req, res) => {
+    const base = process.env.PUBLIC_BASE_URL || "http://localhost:3000";
+    res.type("application/xml").send(
+      `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+        ["", "auth", "attendee"].map((p) => `<url><loc>${base}/${p}</loc></url>`).join("") +
+        `</urlset>`
+    );
+  });
 
   // ─── API Routes ─────────────────────────────────────────────────────────────
   // After any successful data mutation, refresh the knowledge PDF in the
