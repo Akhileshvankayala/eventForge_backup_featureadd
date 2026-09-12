@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { ArrowRight, CalendarDays, ChevronRight, MapPin, Search, Sparkles, Ticket, Users } from "lucide-react";
+import Scene3D from "@/components/Scene3D";
 
 const publicEvents = [
   { date: "18", month: "SEP", title: "Future of Work Summit", type: "Conference", location: "The Glasshouse · NYC", description: "A two-day gathering for leaders shaping the next chapter of work.", attendees: "1,248 joined", tone: "coral" },
@@ -21,6 +22,7 @@ export default function Landing() {
 
       <main className="mx-auto max-w-[1240px] px-5 pb-16 sm:px-8 lg:px-10">
         <section className="relative overflow-hidden rounded-[32px] bg-ink px-6 py-14 text-white shadow-[0_24px_52px_rgba(14,40,49,0.18)] sm:px-12 sm:py-20 lg:px-16">
+          <Scene3D disabled={false} />
           <div className="absolute -right-20 -top-28 size-80 rounded-full border-[38px] border-white/[0.06]" /><div className="absolute -bottom-44 left-1/3 size-96 rounded-full border-[52px] border-coral/10" />
           <div className="relative max-w-[700px]"><div className="mb-5 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-coral"><Sparkles className="size-3.5" /> Find your next meaningful room</div><h1 className="font-display text-[clamp(2.7rem,7vw,5.9rem)] font-bold leading-[0.9] tracking-[-0.08em]">Ideas are better<br /><span className="text-coral">together.</span></h1><p className="mt-6 max-w-[510px] text-[14px] leading-6 text-white/60">Discover conferences, workshops, and conversations built for curious people. Pick a room, bring your questions, and leave with momentum.</p><div className="mt-8 flex flex-wrap gap-3"><button onClick={() => document.getElementById("events")?.scrollIntoView({ behavior: "smooth" })} className="flex items-center gap-2 rounded-[13px] bg-coral px-4 py-3 text-[12px] font-black text-ink transition hover:-translate-y-0.5 hover:bg-[#f58c79]">Explore events <ArrowRight className="size-4" /></button><button onClick={() => navigate("/auth?role=attendee")} className="flex items-center gap-2 rounded-[13px] border border-white/15 bg-white/10 px-4 py-3 text-[12px] font-bold text-white transition hover:bg-white/15"><Ticket className="size-4" /> View my tickets</button></div></div>
         </section>
