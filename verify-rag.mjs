@@ -100,6 +100,23 @@ await t("unknown topic -> guided fallback", async () => {
   const a = await ask(JO, "What is the capital of Assyria?");
   has(a, "couldn't find"); return "honest";
 });
+// --- new guide coverage ---
+await t("search/filter attendees", async () => {
+  const a = await ask(JO, "How do I search or filter attendee registrations?");
+  has(a, "Search attendees"); return "guide";
+});
+await t("approve registration how-to", async () => {
+  const a = await ask(JO, "How do I approve a pending registration?");
+  has(a, "Approve"); return "guide";
+});
+await t("403 meaning", async () => {
+  const a = await ask(JO, "What does a 403 error mean?");
+  has(a, "not allowed"); return "guide";
+});
+await t("coupon how-to", async () => {
+  const a = await ask(JO, "How do coupon codes work?");
+  has(a, "EVT"); return "guide";
+});
 // --- validation ---
 await t("empty question -> 400", async () => {
   const r = await req("POST", "/api/ai/ask", { question: "  " }, JO);
