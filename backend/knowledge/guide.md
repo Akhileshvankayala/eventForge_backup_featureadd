@@ -328,6 +328,11 @@ sessions missing speakers, waitlisted attendees), and last updated time.
   its attendees will see it.
 - What do the notifications show? Live attention items, this month's ticket
   count with change, and your next-event countdown.
+- How do I export a report? Press "Generate report" in the top bar (or the
+  download icon on the velocity card) to download a CSV with per-event
+  capacity, registrations, approvals, waitlist, and session counts.
+- What if I open a page that doesn't exist? A styled 404 page ("Lost in the
+  venue") offers Back to home and the organizer dashboard.
 - Can attendees see my event? Only when published and public.
 - What does 409 mean? Conflict: duplicate registration, overlapping session,
   or reused QR code.
