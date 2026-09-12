@@ -46,7 +46,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 
   // Optionally fetch full user from DB
   const user = decoded;
-  req.user = user;
+  req.user = { id: user.userId, email: user.email, role: user.role, name: user.name };
   next();
 }
 
@@ -75,7 +75,7 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
   const token = header.split(" ")[1];
   const decoded = verifyToken(token);
   if (decoded) {
-    req.user = decoded;
+    req.user = { id: decoded.userId, email: decoded.email, role: decoded.role, name: decoded.name };
   }
   next();
 }
