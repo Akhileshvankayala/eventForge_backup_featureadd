@@ -533,7 +533,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 20 0 R >>
 endobj
 22 0 obj
-<< /Length 3464 >>
+<< /Length 3720 >>
 stream
 BT
 /F1 10 Tf 1 0 0 1 56 786.0 Tm (the session's box.) Tj
@@ -569,39 +569,34 @@ BT
 /F1 10 Tf 1 0 0 1 56 354.0 Tm (" What do the notifications show? Live attention items, this month's) Tj
 /F1 10 Tf 1 0 0 1 56 341.0 Tm (ticket) Tj
 /F1 10 Tf 1 0 0 1 56 326.0 Tm (count with change, and your next-event countdown.) Tj
-/F1 10 Tf 1 0 0 1 56 311.0 Tm (" Can attendees see my event? Only when published and public.) Tj
-/F1 10 Tf 1 0 0 1 56 296.0 Tm (" What does 409 mean? Conflict: duplicate registration, overlapping) Tj
-/F1 10 Tf 1 0 0 1 56 283.0 Tm (session,) Tj
-/F1 10 Tf 1 0 0 1 56 268.0 Tm (or reused QR code.) Tj
-/F1 10 Tf 1 0 0 1 56 253.0 Tm (" What does 403 mean? Your role is not allowed to do that action.) Tj
-/F1 10 Tf 1 0 0 1 56 238.0 Tm (" Why do I see someone else's name? You are signed in as them  sign out) Tj
-/F1 10 Tf 1 0 0 1 56 225.0 Tm (and) Tj
-/F1 10 Tf 1 0 0 1 56 210.0 Tm (sign back in.) Tj
-/F1 10 Tf 1 0 0 1 56 195.0 Tm (" What can the AI copilot answer? Anything in this guide plus your live) Tj
-/F1 10 Tf 1 0 0 1 56 182.0 Tm (data:) Tj
-/F1 10 Tf 1 0 0 1 56 167.0 Tm (events, registrations, tickets, sessions, check-in, analytics.) Tj
-/F1 10 Tf 1 0 0 1 56 152.0 Tm () Tj
-/F1 10 Tf 1 0 0 1 56 136.0 Tm () Tj
-/F1 15 Tf 1 0 0 1 56 119.0 Tm (Live snapshot) Tj
-/F1 10 Tf 1 0 0 1 56 93.0 Tm (Generated: 2026-09-12T12:37:25.389Z) Tj
-/F1 10 Tf 1 0 0 1 56 78.0 Tm (" users: 5) Tj
+/F1 10 Tf 1 0 0 1 56 311.0 Tm (" How do I export a report? Press "Generate report" in the top bar \(or) Tj
+/F1 10 Tf 1 0 0 1 56 298.0 Tm (the) Tj
+/F1 10 Tf 1 0 0 1 56 283.0 Tm (download icon on the velocity card\) to download a CSV with per-event) Tj
+/F1 10 Tf 1 0 0 1 56 268.0 Tm (capacity, registrations, approvals, waitlist, and session counts.) Tj
+/F1 10 Tf 1 0 0 1 56 253.0 Tm (" What if I open a page that doesn't exist? A styled 404 page \("Lost in) Tj
+/F1 10 Tf 1 0 0 1 56 240.0 Tm (the) Tj
+/F1 10 Tf 1 0 0 1 56 225.0 Tm (venue"\) offers Back to home and the organizer dashboard.) Tj
+/F1 10 Tf 1 0 0 1 56 210.0 Tm (" Can attendees see my event? Only when published and public.) Tj
+/F1 10 Tf 1 0 0 1 56 195.0 Tm (" What does 409 mean? Conflict: duplicate registration, overlapping) Tj
+/F1 10 Tf 1 0 0 1 56 182.0 Tm (session,) Tj
+/F1 10 Tf 1 0 0 1 56 167.0 Tm (or reused QR code.) Tj
+/F1 10 Tf 1 0 0 1 56 152.0 Tm (" What does 403 mean? Your role is not allowed to do that action.) Tj
+/F1 10 Tf 1 0 0 1 56 137.0 Tm (" Why do I see someone else's name? You are signed in as them  sign out) Tj
+/F1 10 Tf 1 0 0 1 56 124.0 Tm (and) Tj
+/F1 10 Tf 1 0 0 1 56 109.0 Tm (sign back in.) Tj
+/F1 10 Tf 1 0 0 1 56 94.0 Tm (" What can the AI copilot answer? Anything in this guide plus your live) Tj
+/F1 10 Tf 1 0 0 1 56 81.0 Tm (data:) Tj
 ETendstream
 endobj
 23 0 obj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 22 0 R >>
 endobj
 24 0 obj
-<< /Length 402 >>
+<< /Length 139 >>
 stream
 BT
-/F1 10 Tf 1 0 0 1 56 786.0 Tm (" events: 0) Tj
-/F1 10 Tf 1 0 0 1 56 771.0 Tm (" venues: 0) Tj
-/F1 10 Tf 1 0 0 1 56 756.0 Tm (" sessions: 0) Tj
-/F1 10 Tf 1 0 0 1 56 741.0 Tm (" speakers: 0) Tj
-/F1 10 Tf 1 0 0 1 56 726.0 Tm (" sponsors: 0) Tj
-/F1 10 Tf 1 0 0 1 56 711.0 Tm (" ticketTypes: 0) Tj
-/F1 10 Tf 1 0 0 1 56 696.0 Tm (" attendees: 0) Tj
-/F1 10 Tf 1 0 0 1 56 681.0 Tm (" announcements: 0) Tj
+/F1 10 Tf 1 0 0 1 56 786.0 Tm (events, registrations, tickets, sessions, check-in, analytics.) Tj
+/F1 10 Tf 1 0 0 1 56 771.0 Tm () Tj
 ETendstream
 endobj
 25 0 obj
@@ -632,11 +627,11 @@ xref
 0000030049 00000 n 
 0000033728 00000 n 
 0000033856 00000 n 
-0000037372 00000 n 
-0000037500 00000 n 
-0000037953 00000 n 
+0000037628 00000 n 
+0000037756 00000 n 
+0000037946 00000 n 
 trailer
 << /Size 26 /Root 1 0 R >>
 startxref
-38081
+38074
 %%EOF

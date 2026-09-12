@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner";
 import ChatbotPanel from "@/components/ChatbotPanel";
 import { api } from "@/lib/api";
+import { downloadReport } from "@/lib/report";
 
 type ApiEvent = {
   _id?: string;
@@ -354,6 +355,15 @@ export default function Home() {
   }, [filteredEvents, eventSort]);
 
   const notify = (message: string) => toast.success(message, { description: "Your EventForge account is up to date." });
+  const notifyError = (message: string) => toast.error(message);
+  const handleExportReport = async () => {
+    try {
+      const filename = await downloadReport(userName);
+      notify(`Report downloaded: ${filename}`);
+    } catch (exportError) {
+      notifyError(exportError instanceof Error ? exportError.message : "Could not generate the report.");
+    }
+  };
   const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   const dayPart = (() => {
     const h = new Date().getHours();
@@ -455,7 +465,7 @@ export default function Home() {
             <span>EventForge</span><ChevronRight className="size-3.5" /><span className="text-ink">Overview</span>
           </div>
           <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
-            <button onClick={() => notify("Event report generated")} className="hidden h-10 items-center gap-2 rounded-[13px] border border-ink/8 bg-white/65 px-3 text-[11px] font-black text-ink/65 transition hover:-translate-y-0.5 hover:bg-white sm:flex"><FileText className="size-3.5 text-coral" /> Generate report</button>
+            <button onClick={handleExportReport} className="hidden h-10 items-center gap-2 rounded-[13px] border border-ink/8 bg-white/65 px-3 text-[11px] font-black text-ink/65 transition hover:-translate-y-0.5 hover:bg-white sm:flex"><FileText className="size-3.5 text-coral" /> Generate report</button>
             <div className="relative hidden w-full max-w-[260px] sm:block">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink/35" />
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search EventForge" className="h-10 w-full rounded-[13px] border border-white/90 bg-white/55 pl-9 pr-10 text-[12px] font-medium outline-none ring-coral/20 transition placeholder:text-ink/35 focus:bg-white/80 focus:ring-4" />
@@ -487,7 +497,7 @@ export default function Home() {
             </div>
 
             <div className="glass-card rounded-[26px] p-5 shadow-[0_14px_34px_rgba(47,59,61,0.07)] sm:p-6">
-              <div className="flex items-start justify-between">{overviewLoading ? (<div className="animate-pulse"><div className="h-3 w-36 rounded-full bg-ink/10" /><div className="mt-3 h-9 w-28 rounded-[10px] bg-ink/10" /><div className="mt-2 h-3 w-40 rounded-full bg-ink/5" /></div>) : overviewError ? (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Registration velocity</p><p className="mt-2 text-[12px] font-semibold text-ink/55">Could not load analytics.</p><button onClick={retryOverview} className="mt-2 rounded-full bg-ink px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-[#264c59]">Retry</button></div>) : (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Registration velocity</p><div className="mt-2 flex items-end gap-3"><span className="font-display text-[34px] font-bold tracking-[-0.07em]">{formatCount(overview?.velocity?.totalThisMonth ?? 0)}</span><span className={`mb-1.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${velocityUp ? "bg-[#e4f2e9] text-[#39825f]" : "bg-[#fbe7e1] text-[#a65745]"}`}>{velocityUp ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />} {Math.abs(overview?.velocity?.pctChange ?? 0).toFixed(1)}%</span></div><p className="mt-1 text-[11px] text-ink/45">tickets sold this month</p></div>)}<button onClick={() => notify("Analytics exported")} className="grid size-9 place-items-center rounded-full bg-white/80 text-ink/45 transition hover:bg-white hover:text-ink"><Download className="size-4" /></button></div>
+              <div className="flex items-start justify-between">{overviewLoading ? (<div className="animate-pulse"><div className="h-3 w-36 rounded-full bg-ink/10" /><div className="mt-3 h-9 w-28 rounded-[10px] bg-ink/10" /><div className="mt-2 h-3 w-40 rounded-full bg-ink/5" /></div>) : overviewError ? (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Registration velocity</p><p className="mt-2 text-[12px] font-semibold text-ink/55">Could not load analytics.</p><button onClick={retryOverview} className="mt-2 rounded-full bg-ink px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-[#264c59]">Retry</button></div>) : (<div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/38">Registration velocity</p><div className="mt-2 flex items-end gap-3"><span className="font-display text-[34px] font-bold tracking-[-0.07em]">{formatCount(overview?.velocity?.totalThisMonth ?? 0)}</span><span className={`mb-1.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${velocityUp ? "bg-[#e4f2e9] text-[#39825f]" : "bg-[#fbe7e1] text-[#a65745]"}`}>{velocityUp ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />} {Math.abs(overview?.velocity?.pctChange ?? 0).toFixed(1)}%</span></div><p className="mt-1 text-[11px] text-ink/45">tickets sold this month</p></div>)}<button onClick={handleExportReport} className="grid size-9 place-items-center rounded-full bg-white/80 text-ink/45 transition hover:bg-white hover:text-ink"><Download className="size-4" /></button></div>
               {overviewLoading ? (<div className="mt-7 flex h-[94px] items-end gap-1.5 sm:gap-2">{Array.from({ length: 14 }).map((_, index) => <div key={index} className="flex h-full flex-1 animate-pulse items-end"><div className="w-full rounded-t-[6px] bg-ink/8" style={{ height: `${24 + ((index * 37) % 60)}%` }} /></div>)}</div>) : overviewError ? (<div className="mt-7 flex h-[94px] items-center justify-center rounded-[14px] border border-dashed border-ink/10 text-[11px] text-ink/45">Chart unavailable</div>) : (<div className="mt-7 flex h-[94px] items-end gap-1.5 sm:gap-2">{velocityBars.map((bar, index) => <div key={overview?.velocity?.daily[index]?.date ?? index} className="group relative flex h-full flex-1 items-end"><div className={`w-full rounded-t-[6px] transition duration-300 group-hover:opacity-80 ${index === velocityBars.length - 1 ? "bg-coral" : index > 8 ? "bg-[#d2e2d8]" : "bg-[#e9eeea]"}`} style={{ height: `${bar}%` }} /></div>)}</div>)}
               <div className="mt-3 flex justify-between text-[9px] font-bold uppercase tracking-[0.13em] text-ink/30"><span>{overview?.velocity?.daily[0] ? shortDayLabel(overview.velocity.daily[0].date) : "—"}</span><span>{overview?.velocity?.daily.length ? shortDayLabel(overview.velocity.daily[overview.velocity.daily.length - 1].date) : "—"}</span></div>
             </div>
