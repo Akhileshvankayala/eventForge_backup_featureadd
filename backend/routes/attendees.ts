@@ -2,6 +2,7 @@ import { Router } from "express";
 import { body, param, query } from "express-validator";
 import { createAttendee, findAttendeeById, findAttendeeByEmailAndEvent, findAttendeeByQrCode, findAttendeesByEvent, findAttendeesByUser, updateAttendee, updateAttendeeCheckin, deleteAttendee } from "../models/attendee.js";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
+import { assertOwnEvent, requireEventAccess } from "../middleware/scope.js";
 import { validate } from "../middleware/validate.js";
 import { ObjectId } from "mongodb";
 import { decrementTicketQuantity } from "../models/ticketType.js";
@@ -12,7 +13,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // ─── List attendees for an event ───────────────────────────────────────────────
-router.get("/event/:eventId", requireRole("admin", "organizer", "staff"), async (req: AuthRequest, res) => {
+router.get("/event/:eventId", requireRole("admin", "organizer", "staff"), requireEventAccess, async (req: AuthRequest, res) => {
   const { status } = req.query;
   const attendees = await findAttendeesByEvent(req.params.eventId, { status: status as any });
   res.json(attendees);
@@ -29,6 +30,7 @@ router.get("/my-registrations", async (req: AuthRequest, res) => {
 router.get("/:id", requireRole("admin", "organizer", "staff"), async (req: AuthRequest, res) => {
   const attendee = await findAttendeeById(req.params.id);
   if (!attendee) return res.status(404).json({ error: "Attendee not found" });
+  if (!(await assertOwnEvent(req, res, attendee.eventId))) return;
   res.json(attendee);
 });
 
@@ -134,6 +136,7 @@ router.patch(
   async (req: AuthRequest, res) => {
     const attendee = await findAttendeeById(req.params.id);
     if (!attendee) return res.status(404).json({ error: "Attendee not found" });
+    if (!(await assertOwnEvent(req, res, attendee.eventId))) return;
     if (req.body.registrationStatus === "approved" && attendee.registrationStatus === "waitlisted") {
       // Move from waitlist — check capacity again
       await decrementTicketQuantity(attendee.ticketTypeId!, 1);
@@ -167,6 +170,7 @@ router.post(
   async (req: AuthRequest, res) => {
     const attendee = await findAttendeeById(req.params.id);
     if (!attendee) return res.status(404).json({ error: "Attendee not found" });
+    if (!(await assertOwnEvent(req, res, attendee.eventId))) return;
     if (attendee.checkedIn) return res.status(409).json({ error: "Already checked in" });
     const updated = await updateAttendeeCheckin(req.params.id);
     res.json(updated);
@@ -175,6 +179,9 @@ router.post(
 
 // ─── Update attendee ───────────────────────────────────────────────────────────
 router.patch("/:id", requireRole("admin", "organizer", "staff"), async (req: AuthRequest, res) => {
+  const existing = await findAttendeeById(req.params.id);
+  if (!existing) return res.status(404).json({ error: "Attendee not found" });
+  if (!(await assertOwnEvent(req, res, existing.eventId))) return;
   const updated = await updateAttendee(req.params.id, req.body);
   if (!updated) return res.status(404).json({ error: "Attendee not found" });
   res.json(updated);
@@ -184,6 +191,7 @@ router.patch("/:id", requireRole("admin", "organizer", "staff"), async (req: Aut
 router.post("/:id/cancel", requireRole("admin", "organizer", "staff"), async (req: AuthRequest, res) => {
   const attendee = await findAttendeeById(req.params.id);
   if (!attendee) return res.status(404).json({ error: "Attendee not found" });
+  if (!(await assertOwnEvent(req, res, attendee.eventId))) return;
   if (attendee.registrationStatus === "waitlisted") {
     // Remove from waitlist — no quantity to restore
   } else {

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { body, param, query } from "express-validator";
 import { createSession, findSessionById, findSessionBySlug, findSessionsByEvent, findSessions, updateSession, deleteSession, checkSessionConflict } from "../models/session.js";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
+import { assertOwnEvent, isAdmin, requireEventAccess, visibleEventIds } from "../middleware/scope.js";
 import { validate } from "../middleware/validate.js";
 import { ObjectId } from "mongodb";
 
@@ -10,9 +11,27 @@ const router = Router();
 router.use(authMiddleware);
 
 // ─── List sessions ────────────────────────────────────────────────────────────
+// Scoped: explicit eventId is ownership-checked; otherwise organizers see
+// their own events' sessions, others see published-event sessions.
 router.get("/", async (req: AuthRequest, res) => {
   const { eventId, speakerId } = req.query;
-  const sessions = await findSessions({}, { eventId: eventId as string, speakerId: speakerId as string });
+  if (eventId) {
+    if (isAdmin(req)) {
+      const sessions = await findSessions({}, { eventId: eventId as string, speakerId: speakerId as string });
+      res.json(sessions);
+      return;
+    }
+    const ok = await assertOwnEvent(req, res, eventId as string);
+    if (!ok) return;
+    const sessions = await findSessions({}, { eventId: eventId as string, speakerId: speakerId as string });
+    res.json(sessions);
+    return;
+  }
+  const visible = await visibleEventIds(req);
+  const sessions = await findSessions(
+    visible ? { eventId: { $in: visible } } : {},
+    { speakerId: speakerId as string }
+  );
   res.json(sessions);
 });
 
@@ -20,10 +39,11 @@ router.get("/", async (req: AuthRequest, res) => {
 router.get("/:id", async (req: AuthRequest, res) => {
   const session = await findSessionById(req.params.id);
   if (!session) return res.status(404).json({ error: "Session not found" });
+  if (!(await assertOwnEvent(req, res, session.eventId))) return;
   res.json(session);
 });
 
-router.get("/event/:eventId", async (req: AuthRequest, res) => {
+router.get("/event/:eventId", requireEventAccess, async (req: AuthRequest, res) => {
   const sessions = await findSessionsByEvent(req.params.eventId);
   res.json(sessions);
 });
@@ -43,6 +63,7 @@ router.post(
   body("timezone").notEmpty(),
   body("capacity").isInt({ min: 0 }),
   validate,
+  requireEventAccess,
   async (req: AuthRequest, res) => {
     // Check for conflicts
     const conflicts = await checkSessionConflict(req.body.eventId, new Date(req.body.startTime), new Date(req.body.endTime));
@@ -84,6 +105,7 @@ router.patch(
   async (req: AuthRequest, res) => {
     const session = await findSessionById(req.params.id);
     if (!session) return res.status(404).json({ error: "Session not found" });
+    if (!(await assertOwnEvent(req, res, session.eventId))) return;
 
     // Re-check conflicts if time changed
     if (req.body.startTime || req.body.endTime) {
@@ -113,12 +135,15 @@ router.patch(
 
 // ─── Delete session ───────────────────────────────────────────────────────────
 router.delete("/:id", requireRole("admin", "organizer", "staff"), async (req: AuthRequest, res) => {
+  const session = await findSessionById(req.params.id);
+  if (!session) return res.status(404).json({ error: "Session not found" });
+  if (!(await assertOwnEvent(req, res, session.eventId))) return;
   await deleteSession(req.params.id);
   res.json({ message: "Session deleted" });
 });
 
 // ─── Check conflict (standalone) ──────────────────────────────────────────────
-router.post("/check-conflict", requireRole("admin", "organizer", "staff"), async (req: AuthRequest, res) => {
+router.post("/check-conflict", requireRole("admin", "organizer", "staff"), requireEventAccess, async (req: AuthRequest, res) => {
   const { eventId, startTime, endTime, excludeSessionId } = req.body;
   if (!eventId || !startTime || !endTime) return res.status(400).json({ error: "eventId, startTime, endTime required" });
   const conflicts = await checkSessionConflict(eventId, new Date(startTime), new Date(endTime), excludeSessionId);

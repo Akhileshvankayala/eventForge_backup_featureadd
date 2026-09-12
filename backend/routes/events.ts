@@ -2,6 +2,7 @@ import { Router } from "express";
 import { body, param, query } from "express-validator";
 import { createEvent, findEventById, findEventBySlug, findEvents, updateEvent, deleteEvent } from "../models/event.js";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
+import { isAdmin, isStaffSide, ownedEventIds, assertOwnEvent } from "../middleware/scope.js";
 import { validate } from "../middleware/validate.js";
 import { ObjectId } from "mongodb";
 
@@ -10,9 +11,19 @@ const router = Router();
 router.use(authMiddleware);
 
 // ─── List events ──────────────────────────────────────────────────────────────
+// Admins see all; organizers/staff see only their own; everyone else sees
+// published + public events.
 router.get("/", async (req: AuthRequest, res) => {
   const { status, organizerId, page = "1", limit = "100" } = req.query;
-  const filter: Record<string, unknown> = { visibility: "public" };
+  const filter: Record<string, unknown> = {};
+  if (isAdmin(req)) {
+    // no base constraint
+  } else if (isStaffSide(req)) {
+    filter.organizerId = new ObjectId(req.user!.id);
+  } else {
+    filter.status = "published";
+    filter.visibility = "public";
+  }
   if (status) filter.status = status as any;
   if (organizerId) filter.organizerId = organizerId;
   const events = await findEvents(filter);
@@ -23,12 +34,14 @@ router.get("/", async (req: AuthRequest, res) => {
 router.get("/:id", async (req: AuthRequest, res) => {
   const event = await findEventById(req.params.id);
   if (!event) return res.status(404).json({ error: "Event not found" });
+  if (!(await assertOwnEvent(req, res, event._id!))) return;
   res.json(event);
 });
 
 router.get("/slug/:slug", async (req: AuthRequest, res) => {
   const event = await findEventBySlug(req.params.slug);
   if (!event) return res.status(404).json({ error: "Event not found" });
+  if (!(await assertOwnEvent(req, res, event._id!))) return;
   res.json(event);
 });
 
