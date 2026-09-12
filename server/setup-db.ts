@@ -1,234 +1,118 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
+import bcrypt from "bcryptjs";
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017";
-const DB_NAME = "eventForge";
+const DB_NAME   = "eventForge";
 
-interface User {
-  _id: { toString(): string };
-  email: string;
-  name: string;
-  role: "admin" | "organizer";
-  password: string;
-  organization: string;
-  avatar: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+function oid(): ObjectId {
+  return new ObjectId();
 }
 
-interface Organizer {
-  _id: { toString(): string };
-  name: string;
-  email: string;
-  logo?: string;
-  website?: string;
-  industry?: string;
-  description?: string;
-  contactName: string;
-  contactEmail: string;
-  contactPhone?: string;
-  address?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
-interface Venue {
-  _id: { toString(): string };
-  name: string;
-  address?: string;
-  city: string;
-  country: string;
-  capacity: number;
-  rooms: number;
-  type: "physical" | "virtual";
-  notes?: string;
-  floorPlans?: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Event {
-  _id: { toString(): string };
-  title: string;
-  slug: string;
-  description: string;
-  type: "Conference" | "Workshop" | "Webinar" | "Meetup";
-  startDate: Date;
-  endDate: Date;
-  venueId: { toString(): string } | null;
-  organizerId: { toString(): string };
-  status: "draft" | "live" | "registration_open" | "completed" | "cancelled";
-  coverImage?: string;
-  tags?: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Session {
-  _id: { toString(): string };
-  eventId: { toString(): string };
-  title: string;
-  time: string;
-  room: string;
-  format: string;
-  speakerIds?: string[];
-  description?: string;
-  status: string;
-  createdAt: Date;
-}
-
-interface Speaker {
-  _id: { toString(): string };
-  name: string;
-  email: string;
-  bio: string;
-  avatar?: string;
-  title: string;
-  expertise: string[];
-  status: string;
-  social?: Record<string, string>;
-  createdAt: Date;
-}
-
-interface Sponsor {
-  _id: { toString(): string };
-  name: string;
-  tier: string;
-  logo?: string;
-  website?: string;
-  description?: string;
-  deliverables?: string[];
-  deliverablesCompleted: number;
-  contact: { name: string; email: string };
-  status: string;
-  createdAt: Date;
-}
-
-interface TicketType {
-  _id: { toString(): string };
-  eventId: { toString(): string };
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  capacity: number;
-  sold: number;
-  waitlist: number;
-  status: string;
-  includes?: string[];
-  createdAt: Date;
-}
-
-interface Attendee {
-  _id: { toString(): string };
-  eventId: { toString(): string };
-  name: string;
-  email: string;
-  company?: string;
-  title?: string;
-  ticketType: string;
-  status: string;
-  bookedAt: Date;
-  notes?: string;
-  createdAt: Date;
-}
 
 async function main() {
+  console.log("Connecting to MongoDB...");
   const client = new MongoClient(MONGO_URI);
   await client.connect();
-  console.log("Connected to MongoDB");
+
+  // Generate password hash at runtime to avoid bcrypt version incompatibility
+  const DEMO_PASSWORD_HASH = await bcrypt.hash("password123", 10);
+  console.log("Using runtime-generated password hash for demo users");
+  console.log("Connected.");
 
   const db = client.db(DB_NAME);
+  console.log(`Using database: ${DB_NAME}`);
 
-  // ── Drop & recreate collections (idempotent) ──
-  const collections = [
-    "users",
-    "organizers",
-    "venues",
-    "events",
-    "sessions",
-    "speakers",
-    "sponsors",
-    "ticketTypes",
-    "attendees",
-  ];
+  // Drop the test collection that may have been created by a prior connection check
+  try { await db.dropCollection("___connection_test"); } catch {}
 
-  for (const name of collections) {
-    try {
-      await db.dropCollection(name);
-    } catch {
-      // collection may not exist — fine
-    }
-    await db.createCollection(name);
+  // ── 1. Drop all collections (idempotent) ──
+  const existing = await db.listCollections().toArray();
+  for (const coll of existing) {
+    await db.dropCollection(coll.name);
+    console.log(`Dropped: ${coll.name}`);
   }
 
-  // ── Create indexes ──
-  const users = db.collection<User>("users");
-  const organizers = db.collection<Organizer>("organizers");
-  const venues = db.collection<Venue>("venues");
-  const events = db.collection<Event>("events");
-  const sessions = db.collection<Session>("sessions");
-  const speakers = db.collection<Speaker>("speakers");
-  const sponsors = db.collection<Sponsor>("sponsors");
-  const ticketTypes = db.collection<TicketType>("ticketTypes");
-  const attendees = db.collection<Attendee>("attendees");
+  // ── 2. Collections are auto-created on first insert ──
+  console.log("Collections ready (auto-created on first insert).");
 
-  await users.createIndex({ email: 1 }, { unique: true, name: "email_unique" });
-  await users.createIndex({ email: 1, role: 1 }, { name: "email_role_idx" });
-  await users.createIndex({ role: 1 }, { name: "role_idx" });
+  // Get collection handles
+  const organizers  = db.collection("organizers");
+  const users       = db.collection("users");
+  const venues      = db.collection("venues");
+  const events      = db.collection("events");
+  const sessions    = db.collection("sessions");
+  const speakers    = db.collection("speakers");
+  const sponsors    = db.collection("sponsors");
+  const ticketTypes = db.collection("ticketTypes");
+  const attendees   = db.collection("attendees");
 
-  await organizers.createIndex({ email: 1 }, { unique: true, name: "email_unique" });
-  await organizers.createIndex({ name: 1 }, { name: "name_idx" });
-  await organizers.createIndex({ createdAt: -1 }, { name: "createdAt_idx" });
+  // ── 3. Create indexes ──
+  console.log("Creating indexes...");
 
-  await venues.createIndex({ name: 1 }, { unique: true, name: "name_unique" });
-  await venues.createIndex({ city: 1 }, { name: "city_idx" });
-  await venues.createIndex({ type: 1 }, { name: "type_idx" });
-  await venues.createIndex({ capacity: 1 }, { name: "capacity_idx" });
+  await users.createIndex({ email: 1 }, { unique: true, name: "users_email_unique" });
+  await users.createIndex({ email: 1, role: 1 }, { name: "users_email_role" });
+  await users.createIndex({ role: 1 }, { name: "users_role" });
 
-  await events.createIndex({ slug: 1 }, { unique: true, name: "slug_unique" });
-  await events.createIndex({ title: 1 }, { name: "title_idx" });
-  await events.createIndex({ startDate: 1 }, { name: "startDate_idx" });
-  await events.createIndex({ endDate: 1 }, { name: "endDate_idx" });
-  await events.createIndex({ status: 1 }, { name: "status_idx" });
-  await events.createIndex({ organizerId: 1 }, { name: "organizerId_idx" });
-  await events.createIndex({ venueId: 1 }, { name: "venueId_idx" });
+  await organizers.createIndex({ email: 1 }, { unique: true, name: "organizers_email_unique" });
 
-  await sessions.createIndex({ eventId: 1, time: 1 }, { name: "event_time_idx" });
-  await sessions.createIndex({ eventId: 1, room: 1 }, { name: "event_room_idx" });
-  await sessions.createIndex({ status: 1 }, { name: "session_status_idx" });
+  await venues.createIndex({ name: 1 }, { unique: true, name: "venues_name_unique" });
+  await venues.createIndex({ city: 1 }, { name: "venues_city" });
 
-  await speakers.createIndex({ email: 1 }, { unique: true, name: "email_unique" });
-  await speakers.createIndex({ name: 1 }, { name: "name_idx" });
-  await speakers.createIndex({ status: 1 }, { name: "status_idx" });
+  await events.createIndex({ slug: 1 }, { unique: true, name: "events_slug_unique" });
+  await events.createIndex({ title: "text", description: "text" }, { name: "events_text" });
+  await events.createIndex({ startDate: 1, endDate: 1 }, { name: "events_date_range" });
+  await events.createIndex({ organizerId: 1 }, { name: "events_organizer" });
+  await events.createIndex({ venueId: 1 }, { name: "events_venue" });
+  await events.createIndex({ status: 1 }, { name: "events_status" });
 
-  await sponsors.createIndex({ name: 1 }, { unique: true, name: "name_unique" });
-  await sponsors.createIndex({ tier: 1 }, { name: "tier_idx" });
-  await sponsors.createIndex({ status: 1 }, { name: "status_idx" });
+  await sessions.createIndex({ eventId: 1, time: 1 }, { name: "sessions_event_time" });
+  await sessions.createIndex(
+    { eventId: 1, room: 1, time: 1 },
+    { unique: true, name: "sessions_event_room_time_unique" }
+  );
+  await sessions.createIndex({ eventId: 1, format: 1 }, { name: "sessions_event_format" });
 
-  await ticketTypes.createIndex({ eventId: 1, name: 1 }, { unique: true, name: "event_name_unique" });
-  await ticketTypes.createIndex({ status: 1 }, { name: "ticket_status_idx" });
-  await ticketTypes.createIndex({ eventId: 1 }, { name: "eventId_idx" });
+  await speakers.createIndex({ email: 1 }, { unique: true, name: "speakers_email_unique" });
+  await speakers.createIndex({ name: 1 }, { name: "speakers_name" });
+  await speakers.createIndex({ status: 1 }, { name: "speakers_status" });
 
-  await attendees.createIndex({ email: 1 }, { unique: true, name: "email_unique" });
-  await attendees.createIndex({ eventId: 1, email: 1 }, { unique: true, name: "event_email_unique" });
-  await attendees.createIndex({ eventId: 1, ticketType: 1 }, { name: "event_ticketType_idx" });
-  await attendees.createIndex({ status: 1 }, { name: "status_idx" });
-  await attendees.createIndex({ createdAt: -1 }, { name: "createdAt_idx" });
+  await sponsors.createIndex({ name: 1 }, { unique: true, name: "sponsors_name_unique" });
+  await sponsors.createIndex({ tier: 1 }, { name: "sponsors_tier" });
+  await sponsors.createIndex({ status: 1 }, { name: "sponsors_status" });
 
-  console.log("Indexes created");
+  await ticketTypes.createIndex(
+    { eventId: 1, name: 1 },
+    { unique: true, name: "ticketTypes_event_name_unique" }
+  );
+  await ticketTypes.createIndex({ eventId: 1 }, { name: "ticketTypes_event" });
+  await ticketTypes.createIndex({ status: 1 }, { name: "ticketTypes_status" });
 
-  // ── Seed data ──
+  await attendees.createIndex({ email: 1 }, { unique: true, name: "attendees_email_unique" });
+  await attendees.createIndex(
+    { eventId: 1, email: 1 },
+    { unique: true, name: "attendees_event_email_unique" }
+  );
+  await attendees.createIndex({ eventId: 1, status: 1 }, { name: "attendees_event_status" });
+  await attendees.createIndex({ eventId: 1, ticketType: 1 }, { name: "attendees_event_ticketType" });
+  await attendees.createIndex({ ticketType: 1 }, { name: "attendees_ticketType" });
+
+  console.log("Indexes created.");
+
+  // ── 4. Seed data ──
 
   // Organizers
-  const orgIds = await organizers.insertMany([
+  const orgInsert = await organizers.insertMany([
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "EventForge",
+      slug: "eventforge",
       email: "hello@eventforge.io",
-      logo: "https://picsum.photos/seed/eventforge/200/60",
+      logo: "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=200&q=80",
       website: "https://eventforge.io",
       industry: "Event Management",
       description: "Beautiful corporate events, brilliantly orchestrated.",
+      plan: "Enterprise",
       contactName: "Jordan Ellis",
       contactEmail: "jordan@eventforge.io",
       contactPhone: "+1 (212) 555-0142",
@@ -237,162 +121,168 @@ async function main() {
       updatedAt: new Date("2026-01-15T00:00:00Z"),
     },
   ]);
-  const eventForgeOrgId = orgIds.insertedIds[0];
+  const eventForgeOrgId = orgInsert.insertedIds[0];
 
-  // Users: admin + 2 org users
-  const passwordHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl72PCf7QC6KFFwF3G3y8VzPy"; // bcrypt hash of "password123"
-
-  const userIds = await users.insertMany([
+  // Users: admin + 2 organizers
+  const userInsert = await users.insertMany([
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       email: "admin@eventforge.io",
       name: "EventForge Admin",
       role: "admin",
-      password: passwordHash,
-      organization: "EventForge",
+      passwordHash: DEMO_PASSWORD_HASH,
+      organizationId: eventForgeOrgId,
+      organizationName: "EventForge",
       avatar: null,
+      isActive: true,
       createdAt: new Date("2026-01-15T00:00:00Z"),
       updatedAt: new Date("2026-01-15T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       email: "jordan@eventforge.io",
       name: "Jordan Ellis",
       role: "organizer",
-      password: passwordHash,
-      organization: "EventForge",
+      passwordHash: DEMO_PASSWORD_HASH,
+      organizationId: eventForgeOrgId,
+      organizationName: "EventForge",
       avatar: "https://i.pravatar.cc/150?u=jordan",
+      isActive: true,
       createdAt: new Date("2026-01-15T00:00:00Z"),
       updatedAt: new Date("2026-01-15T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       email: "sam@eventforge.io",
       name: "Sam Rivera",
       role: "organizer",
-      password: passwordHash,
-      organization: "EventForge",
+      passwordHash: DEMO_PASSWORD_HASH,
+      organizationId: eventForgeOrgId,
+      organizationName: "EventForge",
       avatar: "https://i.pravatar.cc/150?u=sam",
+      isActive: true,
       createdAt: new Date("2026-01-15T00:00:00Z"),
       updatedAt: new Date("2026-01-15T00:00:00Z"),
     },
   ]);
-  const adminUserId = userIds.insertedIds[0];
-  const jordanUserId = userIds.insertedIds[1];
-  const samUserId = userIds.insertedIds[2];
+  const adminUserId  = userInsert.insertedIds[0];
+  const jordanUserId = userInsert.insertedIds[1];
+  const samUserId    = userInsert.insertedIds[2];
 
   // Venues
-  const venueIds = await venues.insertMany([
+  const venueInsert = await venues.insertMany([
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "The Glasshouse",
+      slug: "the-glasshouse",
       address: "425 5th Avenue, New York, NY 10016",
       city: "New York",
       country: "USA",
       capacity: 1500,
       rooms: 9,
       type: "physical",
-      notes: "Modern event space with floor-to-ceiling windows overlooking Bryant Park. Main stage, 4 breakout rooms, 2 VIP lounges.",
       floorPlans: ["main-stage.png", "breakout-a.png", "breakout-b.png", "vip-lounge.png"],
+      notes: "Modern event space with floor-to-ceiling windows overlooking Bryant Park. Main stage, 4 breakout rooms, 2 VIP lounges.",
+      status: "ready",
       createdAt: new Date("2026-03-01T00:00:00Z"),
       updatedAt: new Date("2026-03-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Convene Chicago",
+      slug: "convene-chicago",
       address: "500 W Madison St, Chicago, IL 60661",
       city: "Chicago",
       country: "USA",
       capacity: 640,
       rooms: 5,
       type: "physical",
-      notes: "State-of-the-art event space in the heart of Fulton Market. 3 conference rooms, 1 workshop room, 1 executive boardroom.",
       floorPlans: ["fulton-a.png", "fulton-b.png", "fulton-c.png"],
+      notes: "State-of-the-art event space in the heart of Fulton Market. 3 conference rooms, 1 workshop room, 1 executive boardroom.",
+      status: "site_visit",
       createdAt: new Date("2026-03-15T00:00:00Z"),
       updatedAt: new Date("2026-03-15T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Online experience",
+      slug: "online-experience",
+      address: null,
       city: "Online",
       country: "Global",
       capacity: 2000,
       rooms: 1,
       type: "virtual",
-      notes: "Streaming platform with live chat, breakout rooms, and on-demand replay.",
+      floorPlans: [],
+      notes: "Streaming platform with live chat, breakout rooms, and on-demand replay. Supports up to 2,000 concurrent attendees.",
+      status: "connected",
       createdAt: new Date("2026-06-01T00:00:00Z"),
       updatedAt: new Date("2026-06-01T00:00:00Z"),
     },
   ]);
-  const glasshouseId = venueIds.insertedIds[0];
-  const conveenId = venueIds.insertedIds[1];
-  const onlineId = venueIds.insertedIds[2];
+  const glasshouseId = venueInsert.insertedIds[0];
+  const conveenId    = venueInsert.insertedIds[1];
+  const onlineId     = venueInsert.insertedIds[2];
 
   // Events
-  const eventIds = await events.insertMany([
+  const eventInsert = await events.insertMany([
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       title: "Future of Work Summit",
       slug: "future-of-work-summit",
-      description:
-        "A two-day gathering for leaders shaping the next chapter of work. Explore AI, hybrid teams, and the future of leadership.",
+      description: "A two-day gathering for leaders shaping the next chapter of work. Explore AI, hybrid teams, and the future of leadership.",
       type: "Conference",
       startDate: new Date("2026-09-18T09:00:00Z"),
-      endDate: new Date("2026-09-20T17:00:00Z"),
+      endDate:   new Date("2026-09-20T17:00:00Z"),
       venueId: glasshouseId,
       organizerId: jordanUserId,
       status: "live",
-      coverImage:
-        "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80",
+      coverImage: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80",
       tags: ["AI", "leadership", "hybrid-work", "future-of-work"],
       createdAt: new Date("2026-05-01T00:00:00Z"),
       updatedAt: new Date("2026-05-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       title: "Northstar Leadership Lab",
       slug: "northstar-leadership-lab",
-      description:
-        "Small rooms, big questions, and practical tools for modern leadership. An immersive one-day workshop for senior leaders.",
+      description: "Small rooms, big questions, and practical tools for modern leadership. An immersive one-day workshop for senior leaders.",
       type: "Workshop",
       startDate: new Date("2026-10-02T09:00:00Z"),
-      endDate: new Date("2026-10-02T17:00:00Z"),
+      endDate:   new Date("2026-10-02T17:00:00Z"),
       venueId: conveenId,
       organizerId: samUserId,
       status: "draft",
-      coverImage:
-        "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&q=80",
+      coverImage: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&q=80",
       tags: ["leadership", "workshop", "senior-leaders"],
       createdAt: new Date("2026-06-15T00:00:00Z"),
       updatedAt: new Date("2026-06-15T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       title: "Design Systems Workshop",
       slug: "design-systems-workshop",
-      description:
-        "A hands-on day for teams creating clearer, more human digital products. Learn to build and scale design systems.",
+      description: "A hands-on day for teams creating clearer, more human digital products. Learn to build and scale design systems.",
       type: "Workshop",
       startDate: new Date("2026-10-21T10:00:00Z"),
-      endDate: new Date("2026-10-21T18:00:00Z"),
+      endDate:   new Date("2026-10-21T18:00:00Z"),
       venueId: onlineId,
       organizerId: jordanUserId,
       status: "registration_open",
-      coverImage:
-        "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?w=1200&q=80",
+      coverImage: "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?w=1200&q=80",
       tags: ["design-systems", "UX", "component-libraries", "design-ops"],
       createdAt: new Date("2026-07-01T00:00:00Z"),
       updatedAt: new Date("2026-07-01T00:00:00Z"),
     },
   ]);
-  const futureOfWorkId = eventIds.insertedIds[0];
-  const northstarId = eventIds.insertedIds[1];
-  const designSystemsId = eventIds.insertedIds[2];
+  const futureOfWorkId    = eventInsert.insertedIds[0];
+  const northstarId       = eventInsert.insertedIds[1];
+  const designSystemsId   = eventInsert.insertedIds[2];
 
   // Speakers
-  const speakerIds = await speakers.insertMany([
+  const speakerInsert = await speakers.insertMany([
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Dr. Maya Patel",
       email: "maya.patel@futureofwork.org",
       bio: "Organizational psychologist and author of 'The Human Edge'. Dr. Patel studies how AI and automation reshape team dynamics and leadership.",
@@ -405,7 +295,7 @@ async function main() {
       updatedAt: new Date("2026-05-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Theo Brooks",
       email: "theo.brooks@leadershiplab.com",
       bio: "Former VP of People at a Fortune 500 tech company. Now an independent leadership consultant helping organizations build resilient cultures.",
@@ -418,7 +308,7 @@ async function main() {
       updatedAt: new Date("2026-06-15T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Nora Chen",
       email: "nora.chen@designsystems.io",
       bio: "Design systems lead at a major tech company. Built and scaled a design system serving 12 product teams across 3 time zones.",
@@ -431,155 +321,186 @@ async function main() {
       updatedAt: new Date("2026-07-01T00:00:00Z"),
     },
   ]);
-  const mayaSpeakerId = speakerIds.insertedIds[0];
-  const theoSpeakerId = speakerIds.insertedIds[1];
-  const noraSpeakerId = speakerIds.insertedIds[2];
+  const mayaSpeakerId = speakerInsert.insertedIds[0];
+  const theoSpeakerId = speakerInsert.insertedIds[1];
+  const noraSpeakerId = speakerInsert.insertedIds[2];
 
   // Sessions
-  const sessionIds = await sessions.insertMany([
+  const sessionInsert = await sessions.insertMany([
+    // Future of Work Summit
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: futureOfWorkId,
       title: "Opening keynote: The human edge",
       time: "09:30",
+      duration: 60,
       room: "Main stage",
       format: "Keynote",
       speakerIds: [mayaSpeakerId],
       description: "Dr. Maya Patel explores what makes us irreplaceable in an age of intelligent machines.",
-      status: "Published",
+      status: "published",
       createdAt: new Date("2026-05-01T00:00:00Z"),
       updatedAt: new Date("2026-05-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: futureOfWorkId,
       title: "Building with responsible AI",
       time: "11:00",
+      duration: 90,
       room: "Atlas room",
       format: "Workshop",
       speakerIds: [theoSpeakerId],
       description: "Hands-on workshop on implementing responsible AI practices in product development.",
-      status: "Speaker confirmed",
+      status: "speaker_confirmed",
       createdAt: new Date("2026-05-01T00:00:00Z"),
       updatedAt: new Date("2026-05-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: futureOfWorkId,
       title: "Culture as a growth engine",
       time: "13:15",
+      duration: 60,
       room: "Forum room",
       format: "Panel",
       speakerIds: [],
       description: "Panel discussion on how culture drives organizational growth and resilience.",
-      status: "Needs host",
+      status: "needs_host",
       createdAt: new Date("2026-05-01T00:00:00Z"),
       updatedAt: new Date("2026-05-01T00:00:00Z"),
     },
+    // Northstar Leadership Lab
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: northstarId,
       title: "Leading with clarity",
       time: "09:00",
+      duration: 120,
       room: "Room A",
       format: "Workshop",
       speakerIds: [theoSpeakerId],
       description: "An interactive workshop on clear communication and decisive leadership.",
-      status: "Draft",
+      status: "draft",
       createdAt: new Date("2026-06-15T00:00:00Z"),
       updatedAt: new Date("2026-06-15T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: northstarId,
       title: "The feedback loop",
       time: "11:30",
+      duration: 90,
       room: "Room B",
       format: "Workshop",
       speakerIds: [],
       description: "Building feedback-rich cultures that drive continuous improvement.",
-      status: "Draft",
+      status: "draft",
       createdAt: new Date("2026-06-15T00:00:00Z"),
       updatedAt: new Date("2026-06-15T00:00:00Z"),
     },
+    // Design Systems Workshop
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: designSystemsId,
       title: "Systems thinking for designers",
       time: "10:00",
+      duration: 120,
       room: "Main hall",
       format: "Workshop",
       speakerIds: [noraSpeakerId],
       description: "How to think in systems and build design infrastructure that scales.",
-      status: "Published",
+      status: "published",
       createdAt: new Date("2026-07-01T00:00:00Z"),
       updatedAt: new Date("2026-07-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: designSystemsId,
       title: "From tokens to components",
       time: "14:00",
+      duration: 90,
       room: "Track 1",
       format: "Workshop",
       speakerIds: [noraSpeakerId],
       description: "Hands-on session building a token-based design system from scratch.",
-      status: "Published",
+      status: "published",
       createdAt: new Date("2026-07-01T00:00:00Z"),
       updatedAt: new Date("2026-07-01T00:00:00Z"),
     },
   ]);
 
   // Sponsors
-  const sponsorIds = await sponsors.insertMany([
+  const sponsorInsert = await sponsors.insertMany([
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Frame.io",
+      slug: "frame-io",
       tier: "Premier",
       logo: "https://i.pravatar.cc/300?u=frameio",
       website: "https://frame.io",
       description: "Video collaboration platform for creative teams.",
-      deliverables: ["Logo on all materials", "Keynote sponsorship", "VIP lounge activation", "Social media featuring", "Attendee email mention", "Custom swag bag"],
+      deliverables: [
+        "Logo on all materials",
+        "Keynote sponsorship",
+        "VIP lounge activation",
+        "Social media featuring",
+        "Attendee email mention",
+        "Custom swag bag",
+      ],
       deliverablesCompleted: 4,
-      contact: { name: "Alex Turner", email: "alex@frame.io" },
-      status: "On track",
+      contactName: "Alex Turner",
+      contactEmail: "alex@frame.io",
+      status: "active",
       createdAt: new Date("2026-05-01T00:00:00Z"),
       updatedAt: new Date("2026-08-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Loom",
+      slug: "loom",
       tier: "Session",
       logo: "https://i.pravatar.cc/300?u=loom",
       website: "https://loom.com",
       description: "Async video messaging for modern teams.",
-      deliverables: ["Session sponsorship", "Demo booth", "Social media mention"],
+      deliverables: [
+        "Session sponsorship",
+        "Demo booth",
+        "Social media mention",
+      ],
       deliverablesCompleted: 3,
-      contact: { name: "Jamie Park", email: "jamie@loom.com" },
-      status: "On track",
+      contactName: "Jamie Park",
+      contactEmail: "jamie@loom.com",
+      status: "active",
       createdAt: new Date("2026-05-15T00:00:00Z"),
       updatedAt: new Date("2026-08-15T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       name: "Linear",
+      slug: "linear",
       tier: "Community",
       logo: "https://i.pravatar.cc/300?u=linear",
       website: "https://linear.app",
       description: "Streamlined issue tracking for ambitious teams.",
-      deliverables: ["Community partner badge", "Job board listing", "Networking reception sponsorship"],
+      deliverables: [
+        "Community partner badge",
+        "Job board listing",
+        "Networking reception sponsorship",
+      ],
       deliverablesCompleted: 1,
-      contact: { name: "Taylor Kim", email: "taylor@linear.app" },
-      status: "Asset review",
+      contactName: "Taylor Kim",
+      contactEmail: "taylor@linear.app",
+      status: "pending_assets",
       createdAt: new Date("2026-06-01T00:00:00Z"),
       updatedAt: new Date("2026-08-20T00:00:00Z"),
     },
   ]);
 
-  // Ticket types
-  const ticketTypeIds = await ticketTypes.insertMany([
+  // Ticket Types
+  const ticketInsert = await ticketTypes.insertMany([
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: futureOfWorkId,
       name: "General admission",
       description: "Full access to all conference sessions, workshops, and networking events.",
@@ -588,13 +509,19 @@ async function main() {
       capacity: 1000,
       sold: 842,
       waitlist: 42,
-      status: "Active",
-      includes: ["All keynotes", "All workshops", "Lunch both days", "Networking reception", "Digital materials"],
+      status: "active",
+      includes: [
+        "All keynotes",
+        "All workshops",
+        "Lunch both days",
+        "Networking reception",
+        "Digital materials",
+      ],
       createdAt: new Date("2026-05-01T00:00:00Z"),
       updatedAt: new Date("2026-05-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: futureOfWorkId,
       name: "VIP admission",
       description: "Premium experience with VIP lounge access, speaker dinner, and priority seating.",
@@ -603,13 +530,19 @@ async function main() {
       capacity: 250,
       sold: 196,
       waitlist: 0,
-      status: "Active",
-      includes: ["All general admission benefits", "VIP lounge access", "Speaker dinner", "Priority seating", "Signed photo with keynote speaker"],
+      status: "active",
+      includes: [
+        "All general admission benefits",
+        "VIP lounge access",
+        "Speaker dinner",
+        "Priority seating",
+        "Signed photo with keynote speaker",
+      ],
       createdAt: new Date("2026-05-01T00:00:00Z"),
       updatedAt: new Date("2026-05-01T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: designSystemsId,
       name: "Workshop add-on",
       description: "Optional deep-dive session on advanced design system patterns.",
@@ -617,95 +550,102 @@ async function main() {
       currency: "USD",
       capacity: 120,
       sold: 0,
-      waitlist: 0,
-      status: "Waitlist",
-      includes: ["4-hour deep-dive workshop", "Hands-on coding session", "Take-home code repository"],
+      waitlist: 18,
+      status: "waitlist",
+      includes: [
+        "4-hour deep-dive workshop",
+        "Hands-on coding session",
+        "Take-home code repository",
+      ],
       createdAt: new Date("2026-07-01T00:00:00Z"),
       updatedAt: new Date("2026-07-01T00:00:00Z"),
     },
   ]);
 
   // Attendees
-  const attendeeIds = await attendees.insertMany([
+  const attendeeInsert = await attendees.insertMany([
+    // Future of Work Summit
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: futureOfWorkId,
       name: "Maya Patel",
       email: "maya.patel@example.com",
       company: "FutureTech Solutions",
       title: "Executive",
       ticketType: "VIP admission",
-      status: "Confirmed",
+      status: "confirmed",
       bookedAt: new Date("2026-08-12T00:00:00Z"),
       notes: "Dietary restrictions: vegetarian",
       createdAt: new Date("2026-08-12T00:00:00Z"),
       updatedAt: new Date("2026-08-12T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: futureOfWorkId,
       name: "Theo Brooks",
       email: "theo.brooks@example.com",
       company: "Leadership First",
       title: "Workshop pass",
       ticketType: "General admission",
-      status: "Needs approval",
+      status: "needs_approval",
       bookedAt: new Date("2026-08-21T00:00:00Z"),
       notes: "",
       createdAt: new Date("2026-08-21T00:00:00Z"),
       updatedAt: new Date("2026-08-21T00:00:00Z"),
     },
+    // Northstar Leadership Lab
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: northstarId,
       name: "Priya Shah",
       email: "priya.shah@example.com",
       company: "Northstar Consulting",
       title: "Leadership pass",
       ticketType: "VIP admission",
-      status: "Confirmed",
+      status: "confirmed",
       bookedAt: new Date("2026-08-18T00:00:00Z"),
       notes: "Bringing a colleague — will update ticket count",
       createdAt: new Date("2026-08-18T00:00:00Z"),
       updatedAt: new Date("2026-08-18T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: northstarId,
       name: "Marcus Lee",
       email: "marcus.lee@example.com",
       company: "Design Co",
       title: "General admission",
       ticketType: "General admission",
-      status: "Waitlist",
+      status: "waitlist",
       bookedAt: new Date("2026-08-30T00:00:00Z"),
       notes: "Moved from waitlist — pending payment",
       createdAt: new Date("2026-08-30T00:00:00Z"),
       updatedAt: new Date("2026-08-30T00:00:00Z"),
     },
+    // Design Systems Workshop
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: designSystemsId,
       name: "Nora Chen",
       email: "nora.chen@example.com",
       company: "Design Systems Inc",
       title: "Speaker guest",
       ticketType: "VIP admission",
-      status: "Confirmed",
+      status: "confirmed",
       bookedAt: new Date("2026-08-09T00:00:00Z"),
       notes: "Complementary ticket as workshop facilitator",
       createdAt: new Date("2026-08-09T00:00:00Z"),
       updatedAt: new Date("2026-08-09T00:00:00Z"),
     },
     {
-      _id: new (db.Client!.constructor as any).ObjectId(),
+      _id: oid(),
       eventId: designSystemsId,
       name: "Jules Carter",
       email: "jules.carter@example.com",
       company: "Product Lab",
       title: "Workshop pass",
       ticketType: "General admission",
-      status: "Confirmed",
+      status: "confirmed",
       bookedAt: new Date("2026-08-27T00:00:00Z"),
       notes: "",
       createdAt: new Date("2026-08-27T00:00:00Z"),
@@ -713,51 +653,140 @@ async function main() {
     },
   ]);
 
-  console.log("Seed data inserted");
+  console.log("\nSeed data inserted:");
+  console.log("  organizers:    1");
+  console.log("  users:         3 (1 admin + 2 organizers)");
+  console.log("  venues:        3");
+  console.log("  events:        3");
+  console.log("  speakers:      3");
+  console.log("  sessions:      7");
+  console.log("  sponsors:      3");
+  console.log("  ticketTypes:   3");
+  console.log("  attendees:     6");
 
-  // ── Verify ──
-  console.log("\n=== VERIFICATION ===");
+  // ── 5. Verify indexes ──
+  console.log("\n=== INDEX VERIFICATION ===");
+  const collList = [
+    "organizers", "users", "venues", "events",
+    "sessions", "speakers", "sponsors", "ticketTypes", "attendees",
+  ];
+  for (const name of collList) {
+    const indexes = await db.collection(name).listIndexes().toArray();
+    const names = indexes.map((i: any) => i.name);
+    console.log(`  ${name.padEnd(14)} → ${names.join(", ")}`);
+  }
 
-  const dbCheck = client.db(DB_NAME);
-  console.log(`Database name: ${dbCheck.databaseName}`);
+  // ── 6. Verify seed data ──
+  console.log("\n=== SEED DATA VERIFICATION ===");
 
-  const counts = {
-    users: await users.countDocuments(),
-    organizers: await organizers.countDocuments(),
-    venues: await venues.countDocuments(),
-    events: await events.countDocuments(),
-    sessions: await sessions.countDocuments(),
-    speakers: await speakers.countDocuments(),
-    sponsors: await sponsors.countDocuments(),
-    ticketTypes: await ticketTypes.countDocuments(),
-    attendees: await attendees.countDocuments(),
-  };
-  console.log("Document counts:", counts);
-
-  // Show events with venue names
-  const eventDocs = await events.find({}).toArray();
+  // Events with venue names
   console.log("\nEvents:");
+  const eventDocs = await events
+    .aggregate([
+      { $lookup: { from: "venues", localField: "venueId", foreignField: "_id", as: "venue" } },
+      { $unwind: "$venue" },
+      { $sort: { startDate: 1 } },
+    ])
+    .toArray() as any[];
   for (const e of eventDocs) {
-    const venue = await dbCheck.collection("venues").findOne({ _id: e.venueId });
-    console.log(`  - ${e.title} (${e.type}) @ ${venue?.name || "unknown"} · ${e.status}`);
+    console.log(
+      `  ${e.title} (${e.type})\n    Venue: ${e.venue.name} · ${e.venue.city}\n    Status: ${e.status}\n    Dates: ${e.startDate.toISOString().slice(0,10)} → ${e.endDate.toISOString().slice(0,10)}`
+    );
   }
 
-  // Show attendees grouped by event
+  // Attendees
   console.log("\nAttendees:");
-  const attendeeDocs = await attendees.find({}).toArray();
+  const attendeeDocs = await attendees
+    .aggregate([
+      { $lookup: { from: "events", localField: "eventId", foreignField: "_id", as: "event" } },
+      { $unwind: "$event" },
+      { $sort: { "event.startDate": 1, bookedAt: 1 } },
+    ])
+    .toArray() as any[];
   for (const a of attendeeDocs) {
-    const event = await dbCheck.collection("events").findOne({ _id: a.eventId });
-    console.log(`  - ${a.name} · ${event?.title || "unknown"} · ${a.ticketType} · ${a.status}`);
+    console.log(
+      `  ${a.name}\n    Event: ${a.event.title}\n    Ticket: ${a.ticketType} · Status: ${a.status}\n    Booked: ${a.bookedAt.toISOString().slice(0,10)}`
+    );
   }
 
-  // Show indexes
-  console.log("\nIndexes:");
-  const collNames = ["users", "organizers", "venues", "events", "sessions", "speakers", "sponsors", "ticketTypes", "attendees"];
-  for (const name of collNames) {
-    const indexes = await dbCheck.collection(name).listIndexes().toArray();
-    const idxNames = indexes.map((i: any) => i.name);
-    console.log(`  ${name}: ${idxNames.join(", ")}`);
+  // Ticket types with event titles
+  console.log("\nTicket Types:");
+  const ticketDocs = await ticketTypes
+    .aggregate([
+      { $lookup: { from: "events", localField: "eventId", foreignField: "_id", as: "event" } },
+      { $unwind: "$event" },
+      { $sort: { "event.startDate": 1, name: 1 } },
+    ])
+    .toArray() as any[];
+  for (const t of ticketDocs) {
+    console.log(
+      `  ${t.name} — ${t.event.title}\n    ${t.sold} sold / ${t.capacity} capacity · Waitlist: ${t.waitlist}\n    Status: ${t.status} · Price: ${t.currency} ${t.price}`
+    );
   }
+
+  // Sessions by event
+  console.log("\nSessions:");
+  const sessionDocs = await sessions
+    .aggregate([
+      { $lookup: { from: "events", localField: "eventId", foreignField: "_id", as: "event" } },
+      { $unwind: "$event" },
+      { $sort: { "event.startDate": 1, time: 1 } },
+    ])
+    .toArray() as any[];
+  for (const s of sessionDocs) {
+    const speakerNames =
+      s.speakerIds?.length > 0
+        ? await speakers
+            .find({ _id: { $in: s.speakerIds } })
+            .project({ name: 1 })
+            .toArray()
+            .then((ss) => ss.map((x: any) => x.name).join(", "))
+        : "—";
+    console.log(
+      `  ${s.time} — ${s.title} (${s.format})\n    Room: ${s.room} · Speaker: ${speakerNames}\n    Event: ${s.event.title} · Status: ${s.status}`
+    );
+  }
+
+  // Speakers
+  console.log("\nSpeakers:");
+  const speakerDocs = await speakers.find({}).sort({ name: 1 }).toArray() as any[];
+  for (const s of speakerDocs) {
+    console.log(
+      `  ${s.name}\n    Title: ${s.title}\n    Status: ${s.status}\n    Expertise: ${s.expertise.join(", ")}`
+    );
+  }
+
+  // Sponsors
+  console.log("\nSponsors:");
+  const sponsorDocs = await sponsors.find({}).sort({ tier: 1, name: 1 }).toArray() as any[];
+  for (const s of sponsorDocs) {
+    console.log(
+      `  ${s.name} — Tier: ${s.tier}\n    Deliverables: ${s.deliverablesCompleted}/${s.deliverables?.length || 0} complete\n    Status: ${s.status}`
+    );
+  }
+
+  // Users
+  console.log("\nUsers:");
+  const userDocs = await users.find({}).sort({ role: 1, email: 1 }).toArray() as any[];
+  for (const u of userDocs) {
+    console.log(
+      `  ${u.email} — ${u.name} (${u.role})\n    Organization: ${u.organizationName}`
+    );
+  }
+
+  // Venues
+  console.log("\nVenues:");
+  const venueDocs = await venues.find({}).sort({ city: 1, name: 1 }).toArray() as any[];
+  for (const v of venueDocs) {
+    console.log(
+      `  ${v.name} — ${v.city}\n    Capacity: ${v.capacity} · Rooms: ${v.rooms} · Type: ${v.type}\n    Status: ${v.status}`
+    );
+  }
+
+  // ── 7. Confirm database name ──
+  const dbInfo = await client.db(DB_NAME).command({ listCollections: 1, nameOnly: true });
+  console.log(`\nDatabase name: ${DB_NAME}`);
+  console.log(`Collections:   ${dbInfo.collections?.map((c: any) => c.name).join(", ") || "none"}`);
 
   await client.close();
   console.log("\nDone. Connection closed.");

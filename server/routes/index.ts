@@ -1,0 +1,13 @@
+export { default as authRoutes } from "./auth.js";
+export { default as userRoutes } from "./users.js";
+export { default as eventRoutes } from "./events.js";
+export { default as venueRoutes } from "./venues.js";
+export { default as sessionRoutes } from "./sessions.js";
+export { default as speakerRoutes } from "./speakers.js";
+export { default as sponsorRoutes } from "./sponsors.js";
+export { default as ticketRoutes } from "./tickets.js";
+export { default as attendeeRoutes } from "./attendees.js";
+export { default as packageRoutes } from "./packages.js";
+export { default as announcementRoutes } from "./announcements.js";
+export { default as aiRoutes } from "./ai.js";
+export { default as checkinRoutes } from "./checkin.js";

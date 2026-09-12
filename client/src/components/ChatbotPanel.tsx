@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Sparkles, ArrowUpRight, Bot, SendHorizontal, FileText, Users, Megaphone, Clock, Loader2, X, Maximize2 } from "lucide-react";
+import { Sparkles, SendHorizontal, Loader2, X, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePersistFn } from "@/hooks/usePersistFn";
 
 type MessageRole = "user" | "assistant" | "system";
 type Message = { role: MessageRole; text: string; timestamp?: number };
-type GenerateAction = "event_description" | "speaker_bio" | "announcement" | "session_summary" | "other";
 type QuickAction = { label: string; prompt: string; variant?: "default" | "outline" };
 
 const GENERATE_QUICK_ACTIONS: QuickAction[] = [
   { label: "Draft event description", prompt: "Write a compelling 150-word event description for an innovation summit targeting senior product leaders. Include tone, audience, and value proposition.", variant: "outline" },
-  { label: "Write speaker bio", prompt: "Draft a 120-word speaker bio for a CTO speaking about responsible AI adoption in enterprise. professional tone, highlight recent achievements.", variant: "outline" },
+  { label: "Write speaker bio", prompt: "Draft a 120-word speaker bio for a CTO speaking about responsible AI adoption in enterprise. Professional tone, highlight recent achievements.", variant: "outline" },
   { label: "Create announcement", prompt: "Write an engaging email announcement inviting attendees to register for a three-day product leadership summit in NYC, September 2026.", variant: "outline" },
   { label: "Summarize session", prompt: "Create a concise session summary for a 45-minute workshop on building design systems at scale. Include key takeaways and who should attend.", variant: "outline" },
 ];
@@ -27,15 +26,8 @@ interface ChatbotPanelProps {
   eventTitle?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** When true, surface the recommendation mode quick actions first. */
   attendeeMode?: boolean;
-  /** Optional list of available session titles to ground recommendations. */
   sessions?: Array<{ title: string; tag?: string }>;
-}
-
-function stream-like-ms(delay = 2): string {
-  // simulate typing indicator timing for the mock path
-  return "";
 }
 
 function buildGeneratePayload(prompt: string, lastMessages: Message[]): Record<string, unknown> {
@@ -44,20 +36,11 @@ function buildGeneratePayload(prompt: string, lastMessages: Message[]): Record<s
     .slice(-3)
     .map((m) => m.text)
     .join("\n\n");
-  return {
-    action: "generate",
-    prompt,
-    context: assistantContext || undefined,
-    // pass through whatever the UI knows; backend can ignore extras
-  };
+  return { action: "generate", prompt, context: assistantContext || undefined };
 }
 
 function buildRecommendPayload(prompt: string, sessions?: Array<{ title: string; tag?: string }>): Record<string, unknown> {
-  return {
-    action: "recommend",
-    prompt,
-    sessions: sessions?.map((s) => ({ title: s.title, tag: s.tag })),
-  };
+  return { action: "recommend", prompt, sessions: sessions?.map((s) => ({ title: s.title, tag: s.tag })) };
 }
 
 async function callAiEndpoint(url: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
@@ -74,11 +57,7 @@ async function callAiEndpoint(url: string, payload: Record<string, unknown>, sig
   return data.text || data.response || data.output || (data.error ? `⚠️ ${data.error}` : "Consider refining your prompt for a sharper result.");
 }
 
-/**
- * When the real /api/ai endpoint is unavailable (network error, 5xx, or not deployed),
- * fall back to deterministic mock responses so the chat UI still feels alive.
- */
-async function mockGenerate(prompt: string, lastMessages: Message[]): Promise<string> {
+async function mockGenerate(prompt: string): Promise<string> {
   const lower = prompt.toLowerCase();
   if (lower.includes("description") || lower.includes("event")) {
     return "Here's a draft event description:\n\n\"A two-day gathering for leaders shaping the next chapter of work. Over three tracks — AI in practice, culture as a growth engine, and the human edge of product — you'll join sharp conversations, hands-on workshops, and a room full of people building what comes next. Seats are limited: bring your best questions.\"\n\nFeel free to adjust the tone or length. Want it more formal, more energetic, or tuned to a specific audience?";
@@ -95,18 +74,18 @@ async function mockGenerate(prompt: string, lastMessages: Message[]): Promise<st
   if (lower.includes("recommend") || lower.includes("session") || lower.includes("interest")) {
     return "Based on what you've shared, here are sessions worth adding to your agenda:\n\n1. Opening keynote: The human edge — the framing session; sets the tone for the whole event.\n2. Building with responsible AI — hands-on, practical, and one of the most-booked sessions.\n3. Culture as a growth engine — a panel that keeps coming up in follow-up conversations.\n4. Shipping design systems without breaking them — workshop; best if you add it early.\n5. Leading through change — fits the leadership track; good pairing with the keynote.\n\nWant these narrowed by your role, time conflicts, or a specific theme?";
   }
-  return `Thoughtful starting point:\n\n"${prompt.slice(0, 120)}\n\nI'd approach this by anchoring on the audience first, then the outcome you want them to walk away with. Want me to refine the tone, trim the length, or focus it on a specific section?\"`;
+  return `Thoughtful starting point for: "${prompt.slice(0, 120)}"\n\nI'd approach this by anchoring on the audience first, then the outcome you want them to walk away with. Want me to refine the tone, trim the length, or focus it on a specific section?`;
 }
 
 async function mockRecommend(prompt: string, sessions: Array<{ title: string; tag?: string }>): Promise<string> {
   const tags = sessions.map((s) => s.tag).filter(Boolean) as string[];
   const titles = sessions.map((s) => s.title);
   if (titles.length === 0) {
-    return "I don't have a session catalog to work from yet. Once your event has sessions loaded, I can match them to your interests and past registration behavior.\n\nIn the meantime, here's how I'd think about your request: start with one keynote to frame the event, then pick one deep-dive per topic you care about, and leave one slot open for serendipity.";
+    return "I don't have a session catalog to work from yet. Once your event has sessions loaded, I can match them to your interests and past registration behavior.\n\nIn the meantime: start with one keynote to frame the event, pick one deep-dive per topic you care about, and leave one slot open for serendipity.";
   }
   const count = Math.min(5, titles.length);
   const picks = titles.slice(0, count).map((t, i) => `${i + 1}. ${t}${tags[i] ? ` — ${tags[i]}` : ""}`).join("\n");
-  return `Here are ${count} sessions I'd suggest based on your interests:\n\n${picks}\n\nThese are starting points — I can re-rank them if you tell me which themes matter most, which times you have free, or which sessions you've already flagged.`;
+  return `Here are ${count} sessions I'd suggest based on your interests:\n\n${picks}\n\nStarting points — tell me which themes matter most, which times you have free, or which sessions you've already flagged, and I'll re-rank.`;
 }
 
 export default function ChatbotPanel({
@@ -126,7 +105,6 @@ export default function ChatbotPanel({
   ]);
   const [input, setInput] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<"generate" | "recommend">("generate");
   const [expanded, setExpanded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -138,11 +116,11 @@ export default function ChatbotPanel({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
 
   useEffect(() => {
     if (open && inputRef.current) {
-      // defer so the panel has rendered
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
@@ -156,7 +134,6 @@ export default function ChatbotPanel({
       setMessages((prev) => [...prev, userMessage]);
       setInput("");
       setGenerating(true);
-      setDraft("");
 
       const lastMessages = [...messages, userMessage];
       let result: string;
@@ -171,8 +148,7 @@ export default function ChatbotPanel({
             const payload = buildRecommendPayload(trimmed, sessions.length ? sessions : undefined);
             result = await callAiEndpoint(`${AI_BASE_URL}/recommend`, payload, controller.signal);
             usedRealApi = true;
-          } catch (err) {
-            // network down / endpoint missing → graceful mock
+          } catch {
             result = await mockRecommend(trimmed, sessions);
           }
         } else {
@@ -180,13 +156,12 @@ export default function ChatbotPanel({
             const payload = buildGeneratePayload(trimmed, lastMessages);
             result = await callAiEndpoint(`${AI_BASE_URL}/generate`, payload, controller.signal);
             usedRealApi = true;
-          } catch (err) {
-            result = await mockGenerate(trimmed, lastMessages);
+          } catch {
+            result = await mockGenerate(trimmed);
           }
         }
-      } catch (err) {
-        // abort from timeout or disconnect → still show something useful
-        result = `I timed out waiting for a response. Try again in a moment, or here's a quick take: ${mockGenerate(trimmed, lastMessages).slice(0, 220)}…`;
+      } catch {
+        result = `I timed out waiting for a response. Try again in a moment, or here's a quick take: ${mockGenerate(trimmed).slice(0, 220)}…`;
       } finally {
         clearTimeout(timeout);
       }
@@ -213,15 +188,12 @@ export default function ChatbotPanel({
   });
 
   const typedMessages = messages.filter((m) => m.role !== "system");
+  const quickActions = mode === "recommend" || !attendeeMode
+    ? GENERATE_QUICK_ACTIONS
+    : RECOMMEND_QUICK_ACTIONS;
 
   return (
     <>
-      {onOpenChange && (
-        // Keep the trigger in sync with the parent even when the panel itself is controlled.
-        // This is a no-op render effect: we only call onOpenChange when the panel closes itself.
-        null
-      )}
-
       {open && (
         <div
           className="fixed bottom-5 right-5 z-[70] flex w-[min(92vw,440px)] flex-col overflow-hidden rounded-[22px] border border-white/90 bg-[#fffdf8]/95 shadow-[0_24px_70px_rgba(14,40,49,0.28)] backdrop-blur-xl"
@@ -244,9 +216,7 @@ export default function ChatbotPanel({
                 )}
               </div>
               <p className="truncate text-[9px] text-white/55">
-                {attendeeMode
-                  ? "Personalized session picks"
-                  : `Event assistant · ${eventTitle}`}
+                {attendeeMode ? "Personalized session picks" : `Event assistant · ${eventTitle}`}
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -269,7 +239,7 @@ export default function ChatbotPanel({
             </div>
           </div>
 
-          {/* Mode toggle */}
+          {/* Mode toggle (attendee mode) */}
           {attendeeMode && (
             <div className="flex border-b border-ink/8 bg-ink/[0.02] px-4 py-2">
               <button
@@ -299,12 +269,7 @@ export default function ChatbotPanel({
 
           {/* Quick actions */}
           <div className="flex flex-wrap gap-1.5 border-b border-ink/8 px-4 py-2.5">
-            {attendeeMode && mode === "recommend"
-              ? RECOMMEND_QUICK_ACTIONS
-              : attendeeMode
-              ? RECOMMEND_QUICK_ACTIONS
-              : GENERATE_QUICK_ACTIONS
-            }.map((action) => (
+            {quickActions.map((action) => (
               <button
                 key={action.label}
                 type="button"
@@ -322,16 +287,12 @@ export default function ChatbotPanel({
           </div>
 
           {/* Messages */}
-          <div
-            className={`max-h-[340px] overflow-y-auto px-4 ${expanded ? "max-h-[60vh]" : ""} pb-3 pt-3`}
-          >
+          <div className={`max-h-[340px] overflow-y-auto px-4 ${expanded ? "max-h-[60vh]" : ""} pb-3 pt-3`}>
             <div className="space-y-3">
               {typedMessages.map((message, index) => (
                 <div
                   key={`${message.role}-${index}-${message.timestamp}`}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
                     className={`max-w-[88%] rounded-[14px] px-3.5 py-2.5 text-[11px] leading-5 ${
@@ -365,10 +326,7 @@ export default function ChatbotPanel({
           </div>
 
           {/* Input */}
-          <form
-            onSubmit={handleSubmit}
-            className="flex items-center gap-2 border-t border-ink/8 p-3"
-          >
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-ink/8 p-3">
             <input
               ref={inputRef}
               value={input}
