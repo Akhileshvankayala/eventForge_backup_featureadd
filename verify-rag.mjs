@@ -20,7 +20,7 @@ async function req(method, path, body, token) {
   return { status: r.status, json };
 }
 const ask = async (token, question, history) => {
-  const r = await req("POST", "/api/ai/ask", { question, history }, token);
+  const r = await req("POST", "/api/ai/ask", { question, history, mode: "extractive" }, token);
   assert(r.status === 200, `status=${r.status}`);
   return r.json.text || "";
 };
