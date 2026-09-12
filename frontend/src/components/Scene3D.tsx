@@ -15,7 +15,7 @@ const icosaGeo = new THREE.IcosahedronGeometry(0.6, 0);
 const octGeo = new THREE.OctahedronGeometry(0.65, 0);
 const dodecGeo = new THREE.DodecahedronGeometry(0.6, 0);
 
-const shapes = [
+const shapes: Array<{ geo: THREE.BufferGeometry; color: string; position: [number, number, number] }> = [
   { geo: torusGeo, color: "#f97e6b", position: [-3.5, 0.2, -2] },
   { geo: icosaGeo, color: "#6ba8f9", position: [3.5, -0.1, -3] },
   { geo: octGeo, color: "#6bf9a8", position: [-2.5, 1.0, -4] },
