@@ -2,7 +2,7 @@ import { Router } from "express";
 import { body } from "express-validator";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
-import { buildLiveChunks, composeAnswer, loadGuideChunks, retrieve } from "../lib/rag.js";
+import { answer } from "../lib/rag.js";
 import { refreshKnowledgePdf } from "../lib/knowledgePdf.js";
 
 // Mock AI endpoints that return generated draft text.
@@ -241,23 +241,24 @@ router.post(
   "/ask",
   authMiddleware,
   body("question").trim().notEmpty().isLength({ max: 1000 }),
+  body("history").optional().isArray({ max: 12 }),
   validate,
   async (req: AuthRequest, res) => {
-    const { question } = req.body as { question: string };
-    const guide = loadGuideChunks();
-    const live = await buildLiveChunks({
+    const { question, history = [] } = req.body as {
+      question: string;
+      history?: Array<{ role: string; text: string }>;
+    };
+    const cleanHistory = (Array.isArray(history) ? history : [])
+      .filter((h) => h && (h.role === "user" || h.role === "assistant") && typeof h.text === "string")
+      .slice(-8)
+      .map((h) => ({ role: h.role as "user" | "assistant", text: h.text.slice(0, 500) }));
+    const result = await answer(question, {
       id: req.user!.id,
       role: req.user!.role,
       name: req.user!.name,
       email: req.user!.email,
-    });
-    const hits = retrieve(question, [...live, ...guide], 3);
-    const text = composeAnswer(question, hits);
-    res.json({
-      text,
-      sources: hits.filter((h) => h.score > 0.02).map((h) => ({ heading: h.chunk.heading, source: h.chunk.source })),
-      model: "rag-v1",
-    });
+    }, cleanHistory);
+    res.json({ ...result, model: "rag-v2" });
   }
 );
 
