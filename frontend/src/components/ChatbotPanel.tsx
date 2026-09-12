@@ -155,7 +155,8 @@ export default function ChatbotPanel({
       try {
         if (mode === "ask") {
           try {
-            result = await callAiEndpoint(`${AI_BASE_URL}/ask`, { question: trimmed }, controller.signal);
+            const history = lastMessages.slice(-8).map((m) => ({ role: m.role, text: m.text.slice(0, 500) }));
+            result = await callAiEndpoint(`${AI_BASE_URL}/ask`, { question: trimmed, history }, controller.signal);
             usedRealApi = true;
           } catch {
             result = await mockGenerate(trimmed);
