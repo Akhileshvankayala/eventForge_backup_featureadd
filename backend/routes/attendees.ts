@@ -47,12 +47,11 @@ router.post(
     const _eventId = new ObjectId(eventId);
     const _ticketTypeId = new ObjectId(ticketTypeId);
 
-    // Check existing registration
+    // Check existing registration — any live registration blocks a duplicate
+    // (only cancelled/refunded emails may re-register).
     const existing = await findAttendeeByEmailAndEvent(eventId, email);
-    if (existing) {
-      if (existing.registrationStatus === "completed" || existing.registrationStatus === "approved") {
-        return res.status(409).json({ error: "Already registered for this event" });
-      }
+    if (existing && existing.registrationStatus !== "cancelled" && existing.registrationStatus !== "refunded") {
+      return res.status(409).json({ error: "Already registered for this event" });
     }
 
     // Check ticket availability

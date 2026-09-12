@@ -53,7 +53,16 @@ router.post(
       });
     }
 
-    const session = await createSession(req.body);
+    const session = await createSession({
+      ...req.body,
+      eventId: new ObjectId(req.body.eventId),
+      startTime: new Date(req.body.startTime),
+      endTime: new Date(req.body.endTime),
+      speakerIds: Array.isArray(req.body.speakerIds)
+        ? req.body.speakerIds.map((id: string) => new ObjectId(id))
+        : [],
+      venueId: req.body.venueId ? new ObjectId(req.body.venueId) : undefined,
+    });
     res.status(201).json(session);
   }
 );
@@ -89,7 +98,15 @@ router.patch(
       }
     }
 
-    const updated = await updateSession(req.params.id, req.body);
+    const updates: Record<string, unknown> = { ...req.body };
+    if (updates.eventId) updates.eventId = new ObjectId(updates.eventId as string);
+    if (updates.venueId) updates.venueId = new ObjectId(updates.venueId as string);
+    if (updates.startTime) updates.startTime = new Date(updates.startTime as string);
+    if (updates.endTime) updates.endTime = new Date(updates.endTime as string);
+    if (Array.isArray(updates.speakerIds)) {
+      updates.speakerIds = (updates.speakerIds as string[]).map((id) => new ObjectId(id));
+    }
+    const updated = await updateSession(req.params.id, updates);
     res.json(updated);
   }
 );

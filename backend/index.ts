@@ -97,3 +97,8 @@ startServer().catch((err) => {
   console.error("Failed to start server:", err);
   process.exit(1);
 });
+
+// Never let a single bad request kill the process (Express 4 has no async guard).
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection (server kept alive):", err);
+});
