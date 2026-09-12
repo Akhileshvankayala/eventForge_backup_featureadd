@@ -74,6 +74,7 @@ export default function Attendee() {
   const [, navigate] = useLocation();
   const [booked, setBooked] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [showCopilot, setShowCopilot] = useState(false);
   const filtered = attendeeEvents.filter((e) =>
     e.title.toLowerCase().includes(search.toLowerCase()),
   );
@@ -174,7 +175,7 @@ export default function Attendee() {
               </div>
               <button
                 type="button"
-                onClick={() => {}}
+                onClick={() => setShowCopilot(true)}
                 className="flex items-center gap-2 rounded-[11px] border border-ink/10 bg-white/80 px-3 py-1.5 text-[10px] font-bold text-ink/70 transition hover:bg-white hover:text-ink"
               >
                 <Sparkles size={13} className="text-coral" strokeWidth={2.2} />
@@ -323,6 +324,12 @@ export default function Attendee() {
           ))}
         </section>
       </main>
+      <ChatbotPanel
+        attendeeMode
+        sessions={SESSIONS_FOR_RECOMMENDATIONS}
+        open={showCopilot}
+        onOpenChange={setShowCopilot}
+      />
     </div>
   );
 }
