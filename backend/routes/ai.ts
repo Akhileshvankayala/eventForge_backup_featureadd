@@ -181,4 +181,57 @@ router.post(
   }
 );
 
+// ─── Chatbot: free-form draft generation (used by ChatbotPanel) ───────────────
+// Public: mock AI carries no sensitive data, and the panel calls it untokened.
+router.post("/generate", body("prompt").trim().notEmpty(), validate, (req: AuthRequest, res) => {
+  const { prompt, context } = req.body as { prompt: string; context?: string };
+  const lower = prompt.toLowerCase();
+  let text: string;
+  if (lower.includes("bio") || lower.includes("speaker")) {
+    text = `Speaker bio draft:\n\n"Alex Morgan is a product and technology leader with a decade of experience turning ambitious ideas into shipped products. They have led teams through hyper-growth, platform migrations, and AI adoption — always with a focus on the humans using the tools. Alex writes and speaks about responsible innovation, resilient teams, and the craft of building."\n\nWant it shorter, more formal, or tuned to a specific audience?`;
+  } else if (lower.includes("announcement") || lower.includes("email") || lower.includes("invite")) {
+    text = `Announcement draft:\n\nSubject: You're invited — save your seat\n\nHi there,\n\nSomething good is coming: sharp sessions, honest conversations, and a room full of people building what's next. Early-bird pricing ends soon — grab your seat before the room fills.\n\nSee you there,\nThe EventForge team`;
+  } else if (lower.includes("summary") || lower.includes("session")) {
+    text = `Session summary draft:\n\nA practical, hands-on session: real examples, takeaways you can apply Monday morning, and time for your hardest questions. Best for practitioners who want depth over hype.\n\nWant it shorter, more action-oriented, or tailored to a level?`;
+  } else {
+    text = `Here's a draft event description:\n\n"A gathering for leaders shaping the next chapter of work. Across keynotes, workshops, and honest panels, you'll join sharp conversations and leave with momentum — plus a room full of people building what comes next."\n\nTell me the audience, tone, or length and I'll sharpen it.`;
+  }
+  if (context) text += `\n\n(Built on our earlier thread for continuity.)`;
+  res.json({ text, model: "mock-ai-v1" });
+});
+
+// ─── Chatbot: session recommendations (used by ChatbotPanel) ─────────────────
+router.post(
+  "/recommend",
+  body("prompt").trim().notEmpty(),
+  body("sessions").optional().isArray(),
+  validate,
+  (req: AuthRequest, res) => {
+    const { prompt, sessions = [] } = req.body as {
+      prompt: string;
+      sessions?: Array<{ title: string; tag?: string }>;
+    };
+    const lower = prompt.toLowerCase();
+    let picks = sessions.slice(0, 5);
+    if (lower.includes("beginner") || lower.includes("first-time")) {
+      picks = sessions.filter((s) => /keynote|panel|intro/i.test(`${s.title} ${s.tag ?? ""}`)).slice(0, 4);
+      if (!picks.length) picks = sessions.slice(0, 4);
+    } else if (lower.includes("advanced") || lower.includes("technical") || lower.includes("deep")) {
+      picks = sessions.filter((s) => /workshop|advanced|systems/i.test(`${s.title} ${s.tag ?? ""}`)).slice(0, 3);
+      if (!picks.length) picks = sessions.slice(0, 3);
+    }
+    if (!picks.length) {
+      return res.json({
+        text: "I don't have a session catalog to work from yet. Once your event has sessions loaded, I can match them to your interests.\n\nIn the meantime: start with one keynote, pick one deep-dive per topic you care about, and leave one slot open for serendipity.",
+        model: "mock-ai-v1",
+      });
+    }
+    const list = picks.map((s, i) => `${i + 1}. ${s.title}${s.tag ? ` — ${s.tag}` : ""}`).join("\n");
+    res.json({
+      text: `Based on "${prompt.slice(0, 80)}", here are my picks:\n\n${list}\n\nWant these narrowed by role, time conflicts, or theme?`,
+      model: "mock-ai-v1",
+    });
+  }
+);
+
 export default router;

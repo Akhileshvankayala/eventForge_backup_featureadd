@@ -53,11 +53,7 @@ async function startServer() {
   app.use("/api/ai", aiRoutes);
   app.use("/api/checkin", checkinRoutes);
 
-  // ─── Error handling ──────────────────────────────────────────────────────────
-  app.use(notFoundHandler);
-  app.use(errorHandler);
-
-  // ─── Static file serving (production) ───────────────────────────────────────
+  // ─── Static file serving + SPA fallback (before 404 handler) ──────────────────
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "public")
@@ -69,6 +65,10 @@ async function startServer() {
   app.get("*", (_req, res) => {
     res.sendFile(path.join(staticPath, "index.html"));
   });
+
+  // ─── Error handling (last) ───────────────────────────────────────────────────
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
   const port = process.env.PORT || 3000;
 
