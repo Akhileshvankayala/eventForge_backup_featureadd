@@ -151,9 +151,13 @@ export default function OrganizerModule() {
   const [ticketSummary, setTicketSummary] = useState({ capacity: 0, sold: 0, waitlist: 0, pending: 0, types: 0 });
   const [overviewStats, setOverviewStats] = useState<OverviewStats | null>(null);
   const [newEventName, setNewEventName] = useState("");
+  const [newEventDate, setNewEventDate] = useState("");
+  const [newEventVenue, setNewEventVenue] = useState("");
   const [newAttendee, setNewAttendee] = useState("");
+  const [newAttendeeEmail, setNewAttendeeEmail] = useState("");
   const [newAttendeeEvent, setNewAttendeeEvent] = useState("");
   const [newAttendeeTicket, setNewAttendeeTicket] = useState("General admission");
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const eventNames = useMemo(() => eventsList.map((event) => event.title), [eventsList]);
 
@@ -204,7 +208,7 @@ export default function OrganizerModule() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, refreshTick]);
 
   useEffect(() => {
     if (key === "events") return;
@@ -276,7 +280,7 @@ export default function OrganizerModule() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, attendeeEvent, eventsList]);
+  }, [key, attendeeEvent, eventsList, refreshTick]);
 
   useEffect(() => {
     if (key !== "tickets") return;
@@ -325,8 +329,60 @@ export default function OrganizerModule() {
   );
   const rows = key === "attendees" ? attendeeRows : allRows.filter((row) => row.name.toLowerCase().includes(search.toLowerCase()));
 
-  const saveEvent = (event: React.FormEvent) => { event.preventDefault(); setNotice(`${newEventName || "New event"} saved as a draft.`); setShowCreate(false); setNewEventName(""); };
-  const saveAttendee = (event: React.FormEvent) => { event.preventDefault(); setNotice(`${newAttendee || "New attendee"} assigned to ${newAttendeeEvent} with a ${newAttendeeTicket}.`); setShowCreate(false); setNewAttendee(""); };
+  const saveEvent = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      const start = newEventDate ? new Date(`${newEventDate}T09:00:00`) : new Date();
+      const end = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+      const slug = `${newEventName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "event"}-${Date.now().toString(36)}`;
+      await api.post("/api/events", {
+        title: newEventName.trim() || "Untitled event",
+        slug,
+        description: newEventVenue.trim() ? `Held at ${newEventVenue.trim()}.` : "Event details coming soon.",
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        timezone: "UTC",
+        capacity: 100,
+        price: 0,
+        currency: "USD",
+        visibility: "private",
+        status: "draft",
+      });
+      setNotice(`${newEventName || "New event"} saved as a draft.`);
+      setShowCreate(false);
+      setNewEventName("");
+      setNewEventDate("");
+      setNewEventVenue("");
+      setRefreshTick((n) => n + 1);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not create event.");
+    }
+  };
+  const saveAttendee = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      const eventId = eventIdFor(newAttendeeEvent);
+      if (!eventId) throw new Error("Pick an event first.");
+      const types = await api.get<ApiTicketType[]>(`/api/tickets/event/${eventId}`).catch(() => [] as ApiTicketType[]);
+      const match = (Array.isArray(types) ? types : []).find((t) => t.name === newAttendeeTicket) || (Array.isArray(types) ? types : [])[0];
+      if (!match) throw new Error("This event has no ticket types yet — create one on the Tickets tab first.");
+      const parts = newAttendee.trim().split(/\s+/);
+      await api.post("/api/attendees/register", {
+        eventId,
+        ticketTypeId: match._id,
+        firstName: parts[0] || "Guest",
+        lastName: parts.slice(1).join(" ") || "Attendee",
+        email: newAttendeeEmail.trim(),
+      });
+      setNotice(`${newAttendee || "New attendee"} assigned to ${newAttendeeEvent} with a ${newAttendeeTicket}.`);
+      setShowCreate(false);
+      setNewAttendee("");
+      setNewAttendeeEmail("");
+      setRefreshTick((n) => n + 1);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not add attendee.");
+    }
+  };
 
   const moderateAttendee = async (id: string, next: "approved" | "rejected") => {
     try {
@@ -338,7 +394,7 @@ export default function OrganizerModule() {
     }
   };
 
-  return <div className="min-h-screen bg-[#f6f4ee] text-ink"><header className="border-b border-ink/7 bg-white/35"><div className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-5 sm:px-8"><button onClick={() => navigate("/organizer")} className="flex items-center gap-3"><span className="eventforge-mark grid size-9 place-items-center rounded-[12px] bg-ink text-[11px] font-black text-white">EF</span><span className="font-display text-[17px] font-bold tracking-[-0.05em]">eventforge</span></button><button onClick={() => navigate("/organizer")} className="flex items-center gap-2 rounded-[11px] px-3 py-2 text-[11px] font-bold text-ink/55 hover:bg-white"><ArrowLeft className="size-3.5" /> Overview</button></div></header><main className="mx-auto max-w-[1180px] px-5 pb-16 sm:px-8"><section className="flex flex-col justify-between gap-6 pb-8 pt-12 md:flex-row md:items-end"><div><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-coral"><Icon className="size-3.5" /> {module.eyebrow}</p><h1 className="mt-3 font-display text-[clamp(2.5rem,6vw,4.7rem)] font-bold leading-[0.9] tracking-[-0.08em]">{module.title}<span className="text-coral">.</span></h1><p className="mt-4 max-w-[510px] text-[13px] leading-6 text-ink/55">{module.description}</p></div><button onClick={() => setShowCreate(true)} className="flex h-11 items-center justify-center gap-2 rounded-[12px] bg-coral px-4 text-[12px] font-black text-ink shadow-[0_10px_18px_rgba(240,123,103,0.18)] transition hover:-translate-y-0.5"><Plus className="size-4" /> {key === "tickets" ? "Add ticket type" : key === "attendees" ? "Add attendee" : "Add event"}</button></section>{notice && <div className="mb-5 flex items-center gap-2 rounded-[14px] border border-[#b7d8c1] bg-[#e5eee9] px-4 py-3 text-[11px] font-bold text-[#39825f]"><Check className="size-4" />{notice}<button onClick={() => setNotice("")} className="ml-auto"><X className="size-4" /></button></div>}{error && <div className="mb-5 flex items-center gap-2 rounded-[14px] border border-[#f0b4a6] bg-[#fbe9e3] px-4 py-3 text-[11px] font-bold text-[#9f503d]"><X className="size-4" />Could not load data: {error}<button onClick={() => setError("")} className="ml-auto"><X className="size-4" /></button></div>}{loading ? <div className="glass-card rounded-[26px] p-10 text-center text-[12px] text-ink/45 shadow-[0_14px_34px_rgba(47,59,61,0.07)]">Loading {module.title.toLowerCase()}…</div> : key === "tickets" ? <TicketOperations rows={rows} eventFilter={eventFilter} setEventFilter={setEventFilter} eventNames={eventNames} summary={ticketSummary} onAction={(message) => setNotice(message)} /> : key === "attendees" ? <AttendeeOperations rows={rows} attendeeEvent={attendeeEvent} setAttendeeEvent={setAttendeeEvent} attendeeSearch={attendeeSearch} setAttendeeSearch={setAttendeeSearch} attendeeTicket={attendeeTicket} setAttendeeTicket={setAttendeeTicket} attendeeSort={attendeeSort} setAttendeeSort={setAttendeeSort} eventNames={eventNames} ticketTypes={ticketNames} onAdd={() => setShowCreate(true)} onModerate={moderateAttendee} /> : ["sessions", "venues", "speakers", "sponsors"].includes(key) ? <EventScopedOperations kind={key as "sessions" | "venues" | "speakers" | "sponsors"} events={eventsList} onAction={(message) => setNotice(message)} /> : <GenericModule module={module} rows={rows} total={allRows.length} search={search} setSearch={setSearch} onAction={(message) => setNotice(message)} stats={overviewStats} />}{showCreate && <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/25 px-4 py-8 backdrop-blur-sm" onClick={() => setShowCreate(false)}><div className="w-full max-w-[480px] rounded-[24px] border border-white bg-[#fffdf8]/95 p-6 shadow-[0_26px_70px_rgba(14,40,49,0.24)]" onClick={(event) => event.stopPropagation()}>{key === "attendees" ? <form onSubmit={saveAttendee}><ModalHeading title="Add attendee" onClose={() => setShowCreate(false)} /><div className="space-y-3"><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Attendee name<input required value={newAttendee} onChange={(event) => setNewAttendee(event.target.value)} placeholder="Jordan Lee" className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[12px] font-medium outline-none focus:border-coral/60" /></label><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Assign to event<span className="mt-1.5 block"><Select value={newAttendeeEvent} onChange={setNewAttendeeEvent} options={eventNames.length ? eventNames : ["No events yet"]} /></span></label><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Ticket type<span className="mt-1.5 block"><Select value={newAttendeeTicket} onChange={setNewAttendeeTicket} options={ticketNames} /></span></label><button className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-[11px] bg-coral text-[11px] font-black text-ink">Save attendee <Check className="size-4" /></button></div></form> : <form onSubmit={saveEvent}><ModalHeading title="Create event" onClose={() => setShowCreate(false)} /><div className="space-y-3"><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Event name<input required value={newEventName} onChange={(event) => setNewEventName(event.target.value)} placeholder="Leadership offsite" className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[12px] font-medium outline-none focus:border-coral/60" /></label><div className="grid gap-3 sm:grid-cols-2"><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Start date<input type="date" required className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] font-medium outline-none focus:border-coral/60" /></label><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Venue<input required placeholder="The Glasshouse" className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] font-medium outline-none focus:border-coral/60" /></label></div><button className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-[11px] bg-coral text-[11px] font-black text-ink">Create draft <Check className="size-4" /></button></div></form>}</div></div>}</main></div>;
+  return <div className="min-h-screen bg-[#f6f4ee] text-ink"><header className="border-b border-ink/7 bg-white/35"><div className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-5 sm:px-8"><button onClick={() => navigate("/organizer")} className="flex items-center gap-3"><span className="eventforge-mark grid size-9 place-items-center rounded-[12px] bg-ink text-[11px] font-black text-white">EF</span><span className="font-display text-[17px] font-bold tracking-[-0.05em]">eventforge</span></button><button onClick={() => navigate("/organizer")} className="flex items-center gap-2 rounded-[11px] px-3 py-2 text-[11px] font-bold text-ink/55 hover:bg-white"><ArrowLeft className="size-3.5" /> Overview</button></div></header><main className="mx-auto max-w-[1180px] px-5 pb-16 sm:px-8"><section className="flex flex-col justify-between gap-6 pb-8 pt-12 md:flex-row md:items-end"><div><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-coral"><Icon className="size-3.5" /> {module.eyebrow}</p><h1 className="mt-3 font-display text-[clamp(2.5rem,6vw,4.7rem)] font-bold leading-[0.9] tracking-[-0.08em]">{module.title}<span className="text-coral">.</span></h1><p className="mt-4 max-w-[510px] text-[13px] leading-6 text-ink/55">{module.description}</p></div><button onClick={() => setShowCreate(true)} className="flex h-11 items-center justify-center gap-2 rounded-[12px] bg-coral px-4 text-[12px] font-black text-ink shadow-[0_10px_18px_rgba(240,123,103,0.18)] transition hover:-translate-y-0.5"><Plus className="size-4" /> {key === "tickets" ? "Add ticket type" : key === "attendees" ? "Add attendee" : "Add event"}</button></section>{notice && <div className="mb-5 flex items-center gap-2 rounded-[14px] border border-[#b7d8c1] bg-[#e5eee9] px-4 py-3 text-[11px] font-bold text-[#39825f]"><Check className="size-4" />{notice}<button onClick={() => setNotice("")} className="ml-auto"><X className="size-4" /></button></div>}{error && <div className="mb-5 flex items-center gap-2 rounded-[14px] border border-[#f0b4a6] bg-[#fbe9e3] px-4 py-3 text-[11px] font-bold text-[#9f503d]"><X className="size-4" />Could not load data: {error}<button onClick={() => setError("")} className="ml-auto"><X className="size-4" /></button></div>}{loading ? <div className="glass-card rounded-[26px] p-10 text-center text-[12px] text-ink/45 shadow-[0_14px_34px_rgba(47,59,61,0.07)]">Loading {module.title.toLowerCase()}…</div> : key === "tickets" ? <TicketOperations rows={rows} eventFilter={eventFilter} setEventFilter={setEventFilter} eventNames={eventNames} summary={ticketSummary} onAction={(message) => setNotice(message)} /> : key === "attendees" ? <AttendeeOperations rows={rows} attendeeEvent={attendeeEvent} setAttendeeEvent={setAttendeeEvent} attendeeSearch={attendeeSearch} setAttendeeSearch={setAttendeeSearch} attendeeTicket={attendeeTicket} setAttendeeTicket={setAttendeeTicket} attendeeSort={attendeeSort} setAttendeeSort={setAttendeeSort} eventNames={eventNames} ticketTypes={ticketNames} onAdd={() => setShowCreate(true)} onModerate={moderateAttendee} /> : ["sessions", "venues", "speakers", "sponsors"].includes(key) ? <EventScopedOperations kind={key as "sessions" | "venues" | "speakers" | "sponsors"} events={eventsList} onAction={(message) => setNotice(message)} /> : <GenericModule module={module} rows={rows} total={allRows.length} search={search} setSearch={setSearch} onAction={(message) => setNotice(message)} stats={overviewStats} />}{showCreate && <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/25 px-4 py-8 backdrop-blur-sm" onClick={() => setShowCreate(false)}><div className="w-full max-w-[480px] rounded-[24px] border border-white bg-[#fffdf8]/95 p-6 shadow-[0_26px_70px_rgba(14,40,49,0.24)]" onClick={(event) => event.stopPropagation()}>{key === "attendees" ? <form onSubmit={saveAttendee}><ModalHeading title="Add attendee" onClose={() => setShowCreate(false)} /><div className="space-y-3"><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Attendee name<input required value={newAttendee} onChange={(event) => setNewAttendee(event.target.value)} placeholder="Jordan Lee" className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[12px] font-medium outline-none focus:border-coral/60" /></label><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Email<input required type="email" value={newAttendeeEmail} onChange={(event) => setNewAttendeeEmail(event.target.value)} placeholder="jordan@company.com" className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[12px] font-medium outline-none focus:border-coral/60" /></label><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Assign to event<span className="mt-1.5 block"><Select value={newAttendeeEvent} onChange={setNewAttendeeEvent} options={eventNames.length ? eventNames : ["No events yet"]} /></span></label><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Ticket type<span className="mt-1.5 block"><Select value={newAttendeeTicket} onChange={setNewAttendeeTicket} options={ticketNames} /></span></label><button className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-[11px] bg-coral text-[11px] font-black text-ink">Save attendee <Check className="size-4" /></button></div></form> : <form onSubmit={saveEvent}><ModalHeading title="Create event" onClose={() => setShowCreate(false)} /><div className="space-y-3"><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Event name<input required value={newEventName} onChange={(event) => setNewEventName(event.target.value)} placeholder="Leadership offsite" className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[12px] font-medium outline-none focus:border-coral/60" /></label><div className="grid gap-3 sm:grid-cols-2"><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Start date<input type="date" required value={newEventDate} onChange={(event) => setNewEventDate(event.target.value)} className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] font-medium outline-none focus:border-coral/60" /></label><label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">Venue<input required value={newEventVenue} onChange={(event) => setNewEventVenue(event.target.value)} placeholder="The Glasshouse" className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] font-medium outline-none focus:border-coral/60" /></label></div><button className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-[11px] bg-coral text-[11px] font-black text-ink">Create draft <Check className="size-4" /></button></div></form>}</div></div>}</main></div>;
 }
 
 function ModalHeading({ title, onClose }: { title: string; onClose: () => void }) { return <div className="mb-5 flex items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-coral">Organizer action</p><h2 className="mt-1 font-display text-[25px] font-bold tracking-[-0.06em]">{title}</h2></div><button onClick={onClose} type="button" className="grid size-8 place-items-center rounded-full bg-ink/5 text-ink/45"><X className="size-4" /></button></div>; }
