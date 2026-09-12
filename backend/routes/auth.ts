@@ -14,10 +14,17 @@ router.post(
   body("email").isEmail().normalizeEmail(),
   body("password").isLength({ min: 6 }),
   body("name").trim().notEmpty(),
-  body("role").isIn(["admin", "organizer", "staff", "speaker", "attendee", "sponsor"]),
+  body("role").optional().isIn(["attendee", "organizer", "speaker", "sponsor"]),
   validate,
   async (req: AuthRequest, res) => {
-    const { email, password, name, role, phone, organization, bio, avatar } = req.body;
+    // Public self-service roles only. admin/staff accounts can only be
+    // created by an admin via POST /api/users — a 403 here closes a
+    // privilege-escalation hole.
+    if (req.body.role === "admin" || req.body.role === "staff") {
+      return res.status(403).json({ error: "This role requires an administrator invitation" });
+    }
+    const { email, password, name, phone, organization, bio, avatar } = req.body;
+    const role = req.body.role ?? "attendee";
     const existing = await findUserByEmail(email);
     if (existing) return res.status(409).json({ error: "Email already registered" });
 
