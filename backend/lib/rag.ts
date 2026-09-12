@@ -31,7 +31,7 @@ const GUIDE_PATH = join(DIR, "..", "knowledge", "guide.md");
 // ─── Text normalization ──────────────────────────────────────────────────────
 
 const STOP = new Set(
-  "the,a,an,and,or,for,with,from,that,this,these,those,are,was,were,has,have,had,will,would,can,its,you,your,yours,our,they,them,their,what,when,where,which,who,how,why,not,but,all,any,each,into,than,then,there,here,about,also,does,doing,done,over,such,very,just,like,get,got,need,want,know,tell,give,does,please,thanks".split(",")
+  "the,a,an,and,or,for,with,from,that,this,these,those,are,was,were,has,have,had,will,would,can,its,you,your,yours,our,they,them,their,what,when,where,which,who,how,why,not,but,all,any,each,into,than,then,there,here,about,also,does,doing,done,over,such,very,just,like,get,got,need,want,know,tell,give,does,please,thanks,mean,means,meaning,define,explain,explains,description,detail,details".split(",")
 );
 
 // Canonical synonym normalization, applied to BOTH queries and documents so
@@ -192,23 +192,29 @@ export function retrieve(query: string, docs: Chunk[], topK = 4): ScoredDoc[] {
 
   return docs
     .map((chunk, i) => {
-      // Field-weighted document vector.
-      const dv = new Map<string, number>();
-      splitFields(chunk).forEach((f) => {
+      // Per-field cosine similarities, blended so long bodies cannot drown
+      // out a strong heading or lead-sentence match.
+      const fields = splitFields(chunk);
+      const fieldWeights = [0.5, 0.3, 0.2];
+      let score = 0;
+      fields.forEach((f, fi) => {
+        const dv = new Map<string, number>();
         analyze(f.text, false).forEach((c, t) => {
-          dv.set(t, (dv.get(t) ?? 0) + c * f.weight);
+          dv.set(t, (dv.get(t) ?? 0) + c);
         });
+        let dot = 0;
+        qw.forEach((w, t) => {
+          dot += w * weight(t, dv.get(t) ?? 0);
+        });
+        let dSum = 0;
+        dv.forEach((c, t) => {
+          const w = weight(t, c);
+          dSum += w * w;
+        });
+        const cos = dot / ((qNorm * Math.sqrt(dSum)) || 1);
+        score += (fieldWeights[fi] ?? 0.2) * cos;
       });
-      let dot = 0;
-      qw.forEach((w, t) => {
-        dot += w * (weight(t, dv.get(t) ?? 0) / (idf(t) || 1));
-      });
-      let dSum = 0;
-      dv.forEach((c, t) => {
-        const w = weight(t, c) / (idf(t) || 1);
-        dSum += w * w;
-      });
-      return { chunk, score: dot / ((qNorm * Math.sqrt(dSum)) || 1) / (idf("__x") || 1) };
+      return { chunk, score };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
@@ -457,7 +463,7 @@ export async function answer(
     const { generate } = await import("./generator.js");
     const contextText = [
       structured ? `Verified facts:\n${structured}` : "",
-      ...hits.filter((h) => h.score > 0.008).map(
+      ...hits.filter((h) => h.score > 0.01).map(
         (h) => `[${h.chunk.source === "live" ? "user's live records" : "product guide"} — ${h.chunk.heading}]\n${h.chunk.text.slice(0, 1200)}`
       ),
     ].filter(Boolean).join("\n\n");
@@ -466,7 +472,7 @@ export async function answer(
       if (generated) {
         return {
           text: generated,
-          sources: hits.filter((h) => h.score > 0.008).slice(0, 3).map((h) => ({ heading: h.chunk.heading, source: h.chunk.source })),
+          sources: hits.filter((h) => h.score > 0.01).slice(0, 3).map((h) => ({ heading: h.chunk.heading, source: h.chunk.source })),
         };
       }
     }
@@ -479,7 +485,7 @@ export async function answer(
     };
   }
 
-  const useful = hits.filter((h) => h.score > 0.015);
+  const useful = hits.filter((h) => h.score > 0.01);
   if (!useful.length) {
     return {
       text: "I couldn't find anything in the EventForge guide or your current data about that. Try asking about your events, registrations, tickets, sessions, check-in, or how a workflow works (e.g. \"how do I publish my event?\").",
