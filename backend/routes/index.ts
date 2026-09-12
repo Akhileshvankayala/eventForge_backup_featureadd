@@ -11,3 +11,4 @@ export { default as packageRoutes } from "./packages.js";
 export { default as announcementRoutes } from "./announcements.js";
 export { default as aiRoutes } from "./ai.js";
 export { default as checkinRoutes } from "./checkin.js";
+export { default as publicRoutes } from "./public.js";

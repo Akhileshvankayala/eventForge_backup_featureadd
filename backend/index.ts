@@ -21,6 +21,7 @@ import {
   announcementRoutes,
   aiRoutes,
   checkinRoutes,
+  publicRoutes,
 } from "./routes/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,6 +53,7 @@ async function startServer() {
   app.use("/api/announcements", announcementRoutes);
   app.use("/api/ai", aiRoutes);
   app.use("/api/checkin", checkinRoutes);
+  app.use("/api/public", publicRoutes);
 
   // ─── Static file serving + SPA fallback (before 404 handler) ──────────────────
   const staticPath =
