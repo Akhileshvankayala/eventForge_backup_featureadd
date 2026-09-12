@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ObjectId } from "mongodb";
 import { body, param, query } from "express-validator";
 import { createTicketType, findTicketTypeById, findTicketTypesByEvent, findTicketTypes, updateTicketType, decrementTicketQuantity, deleteTicketType } from "../models/ticketType.js";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
@@ -11,7 +12,7 @@ router.use(authMiddleware);
 // ─── List ticket types ────────────────────────────────────────────────────────
 router.get("/", async (req: AuthRequest, res) => {
   const { eventId } = req.query;
-  const filter = eventId ? { eventId: new globalThis.ObjectId(eventId as string) } : {};
+  const filter = eventId ? { eventId: new ObjectId(eventId as string) } : {};
   const types = await findTicketTypes(filter);
   res.json(types);
 });

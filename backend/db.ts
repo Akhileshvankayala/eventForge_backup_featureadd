@@ -1,4 +1,4 @@
-import { MongoClient, Db, Collection } from "mongodb";
+import { Collection, Db, MongoClient, type Document } from "mongodb";
 
 const MONGO_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017";
 const DB_NAME = process.env.DB_NAME || "eventForge";
@@ -20,7 +20,7 @@ export function getDb(): Db {
   return db;
 }
 
-export function getCollection<T>(name: string): Collection<T> {
+export function getCollection<T extends Document>(name: string): Collection<T> {
   return getDb().collection<T>(name);
 }
 

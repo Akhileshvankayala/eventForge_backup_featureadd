@@ -42,7 +42,7 @@ export async function findTicketTypeById(id: string | ObjectId): Promise<TicketT
 }
 
 export async function findTicketTypesByEvent(eventId: string | ObjectId): Promise<TicketType[]> {
-  const _id = typeof eventId === "string" ? new ObjectId(eventId) : id;
+  const _id = typeof eventId === "string" ? new ObjectId(eventId) : eventId;
   return getCollection<TicketType>(COLLECTION)
     .find({ eventId: _id })
     .sort({ price: 1 })

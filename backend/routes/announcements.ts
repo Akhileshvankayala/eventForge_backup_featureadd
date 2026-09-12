@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ObjectId } from "mongodb";
 import { body, param, query } from "express-validator";
 import { createAnnouncement, findAnnouncementById, findAnnouncements, updateAnnouncement, deleteAnnouncement } from "../models/announcement.js";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
@@ -36,7 +37,7 @@ router.post(
       ...req.body,
       isActive: true,
       priority: req.body.type === "urgent" ? 10 : req.body.type === "alert" ? 7 : req.body.type === "warning" ? 5 : 3,
-      authorId: req.user ? new globalThis.ObjectId(req.user.id) : undefined,
+      authorId: req.user ? new ObjectId(req.user.id) : undefined,
     };
     const announcement = await createAnnouncement(data);
     res.status(201).json(announcement);

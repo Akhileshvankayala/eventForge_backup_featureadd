@@ -161,7 +161,7 @@ export default function ChatbotPanel({
           }
         }
       } catch {
-        result = `I timed out waiting for a response. Try again in a moment, or here's a quick take: ${mockGenerate(trimmed).slice(0, 220)}…`;
+        result = `I timed out waiting for a response. Try again in a moment, or here's a quick take: ${(await mockGenerate(trimmed)).slice(0, 220)}…`;
       } finally {
         clearTimeout(timeout);
       }
