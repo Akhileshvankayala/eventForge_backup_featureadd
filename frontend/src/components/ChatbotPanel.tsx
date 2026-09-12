@@ -209,9 +209,9 @@ export default function ChatbotPanel({
   const quickActions =
     mode === "ask"
       ? ASK_QUICK_ACTIONS
-      : mode === "recommend" || !attendeeMode
-        ? GENERATE_QUICK_ACTIONS
-        : RECOMMEND_QUICK_ACTIONS;
+      : mode === "recommend"
+        ? RECOMMEND_QUICK_ACTIONS
+        : GENERATE_QUICK_ACTIONS;
 
   return (
     <>

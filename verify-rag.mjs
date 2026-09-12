@@ -117,6 +117,22 @@ await t("coupon how-to", async () => {
   const a = await ask(JO, "How do coupon codes work?");
   has(a, "EVT"); return "guide";
 });
+await t("upcoming filter/view-all", async () => {
+  const a = await ask(JO, "How do I filter or sort my upcoming events?");
+  has(a, "Highest readiness", "View all"); return "guide";
+});
+await t("notifications content", async () => {
+  const a = await ask(JO, "What do the notifications show?");
+  has(a, "attention"); return "guide";
+});
+await t("attendee booking button", async () => {
+  const a = await ask(JO, "How do I book as an attendee?");
+  has(a, "Book"); return "guide";
+});
+await t("copilot tabs", async () => {
+  const a = await ask(JO, "What can the AI copilot do?");
+  has(a, "Ask", "Draft"); return "guide";
+});
 // --- validation ---
 await t("empty question -> 400", async () => {
   const r = await req("POST", "/api/ai/ask", { question: "  " }, JO);

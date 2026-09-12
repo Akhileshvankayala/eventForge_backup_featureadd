@@ -129,17 +129,27 @@ export function loadGuideChunks(): Chunk[] {
   const chunks: Chunk[] = [];
   let heading = "Overview";
   let buf: string[] = [];
+  let inFaq = false;
   const flush = () => {
     const text = buf.join("\n").trim();
     if (text) chunks.push({ id: `guide:${heading}`, source: "guide", heading, text });
     buf = [];
   };
-  for (const line of md.split("\n")) {
+  for (const rawLine of md.split("\n")) {
+    const line = rawLine.replace(/\r$/, "");
     if (line.startsWith("## ")) {
       flush();
       heading = line.slice(3).trim();
+      inFaq = heading === "FAQ";
     } else if (line.startsWith("# ")) {
       continue; // document title, not a chunk
+    } else if (inFaq && line.startsWith("- ")) {
+      // Each FAQ entry becomes its own chunk headed by its question, so
+      // "what do notifications show?" retrieves that answer precisely.
+      flush();
+      const q = line.slice(2).trim();
+      heading = q.length > 90 ? q.slice(0, 90) : q;
+      buf.push(line);
     } else {
       buf.push(line);
     }
@@ -394,6 +404,9 @@ function resolveStructured(intent: Intent, q: string, ctx: LiveContext, user: Sn
   }
 
   if (intent === "LIST") {
+    // Product-surface questions ("what do notifications show?") are answered
+    // from the guide, not from record lists.
+    if (/notif|wallet|copilot|help|landing|auth|login|sign|announce|coupon|error|meaning/i.test(q)) return null;
     if (wants.sessions || (!interested.length && ctx.sessions.length)) {
       if (!ctx.sessions.length) return "No sessions scheduled yet.";
       return "Sessions:\n" + ctx.sessions.slice(0, 10).map((s: any, i: number) => `${i + 1}. ${s.title} — ${s.roomName || "room TBA"}, ${s.startTime ? new Date(s.startTime).toISOString().slice(11, 16) : "time TBA"}`).join("\n");
@@ -449,12 +462,37 @@ export async function answer(
 
   const guide = loadGuideChunks();
   const scored = retrieve(retrievalQuery, [...ctx.chunks, ...guide], 4);
+// Heading anchors: questions naming a surface ("upcoming", "notifications")
+// belong to that guide section even when another chunk shares keywords.
+const HEADING_ANCHORS: Array<{ re: RegExp; headings: string[] }> = [
+  { re: /upcoming|overview|dashboard|velocity|run of show|spotlight|readiness/i, headings: ["Organizer overview dashboard", "Analytics"] },
+  { re: /notif|bell/i, headings: ["Organizer sidebar and header"] },
+  { re: /wallet/i, headings: ["Attendee space", "Booking, tickets, wallet, coupons"] },
+  { re: /copilot|assistant|recommend|draft|recommender/i, headings: ["AI Copilot"] },
+  { re: /sign ?in|log ?in|sign ?up|register|account|password/i, headings: ["Accounts and sign-in"] },
+  { re: /landing|calendar|hero/i, headings: ["Landing page"] },
+  { re: /help|support|phone|email/i, headings: ["Help center"] },
+  { re: /announce/i, headings: ["Announcements"] },
+  { re: /coupon|discount|promo/i, headings: ["Booking, tickets, wallet, coupons"] },
+  { re: /check-?in|qr|door/i, headings: ["Check-in on event day"] },
+  { re: /sponsor|package|deliverable/i, headings: ["Sponsors tab"] },
+  { re: /speaker|keynote/i, headings: ["Speakers tab"] },
+  { re: /venue|room/i, headings: ["Venues tab", "Session scheduling rules"] },
+  { re: /session|schedule|agenda/i, headings: ["Sessions tab", "Session scheduling rules"] },
+  { re: /ticket|capacity|sold|waitlist|price/i, headings: ["Tickets tab", "Tickets and capacity"] },
+  { re: /approve|reject|pending/i, headings: ["Approving registrations", "Attendees tab: search, filter, approve"] },
+];
   // Possessive/personal questions ("my events", "what do I have") are about
-  // live data — bias toward the user's own records.
+  // live data — bias toward the user's own records. Topical anchors boost the
+  // guide section a question names ("upcoming" → overview dashboard).
   const personal = /\b(my|mine|i have|do i|can i|for me)\b/i.test(question);
+  const anchored = new Set<string>();
+  for (const a of HEADING_ANCHORS) {
+    if (a.re.test(question)) a.headings.forEach((h) => anchored.add(h));
+  }
   const hits = scored.map((h) => ({
     ...h,
-    score: h.score + (personal && h.chunk.source === "live" ? 0.12 : 0),
+    score: h.score + (personal && h.chunk.source === "live" ? 0.12 : 0) + (anchored.has(h.chunk.heading) ? 0.15 : 0),
   })).sort((a, b) => b.score - a.score);
 
   // Generative path: ground the model in the exact structured facts plus the
@@ -493,9 +531,26 @@ export async function answer(
     };
   }
   const parts = useful.map((h) => {
-    const sentences = h.chunk.text.split(/(?<=[.!?])\s+/).slice(0, 4).join(" ");
+    const sentences = h.chunk.text.split(/(?<=[.!?])\s+/);
+    // Quote the sentences most relevant to the question, kept in reading
+    // order, instead of always the first paragraph.
+    const qTerms = analyze(retrievalQuery, false);
+    const ranked = sentences
+      .map((s, idx) => {
+        const sTerms = analyze(s, false);
+        let overlap = 0;
+        qTerms.forEach((_, t) => {
+          if (sTerms.has(t)) overlap += t.startsWith("b:") ? 2 : 1;
+        });
+        return { s, idx, overlap };
+      })
+      .sort((a, b) => b.overlap - a.overlap || a.idx - b.idx)
+      .slice(0, 4)
+      .sort((a, b) => a.idx - b.idx)
+      .map((r) => r.s)
+      .join(" ");
     const tag = h.chunk.source === "live" ? "your current data" : "the EventForge guide";
-    return `From ${tag} (${h.chunk.heading}):\n${sentences}`;
+    return `From ${tag} (${h.chunk.heading}):\n${ranked}`;
   });
   return {
     text: `${parts.join("\n\n")}\n\nAnything more specific — a particular event, session, or attendee?`,
@@ -510,9 +565,26 @@ export function composeAnswer(question: string, hits: Array<{ chunk: Chunk; scor
     return "I couldn't find anything in the EventForge guide or your current data about that. Try asking about your events, registrations, tickets, sessions, check-in, or how a workflow works (e.g. \"how do I publish my event?\").";
   }
   const parts = useful.map((h) => {
-    const sentences = h.chunk.text.split(/(?<=[.!?])\s+/).slice(0, 4).join(" ");
+    const sentences = h.chunk.text.split(/(?<=[.!?])\s+/);
+    // Quote the sentences most relevant to the question, kept in reading
+    // order, instead of always the first paragraph.
+    const qTerms = analyze(question, false);
+    const ranked = sentences
+      .map((s, idx) => {
+        const sTerms = analyze(s, false);
+        let overlap = 0;
+        qTerms.forEach((_, t) => {
+          if (sTerms.has(t)) overlap += t.startsWith("b:") ? 2 : 1;
+        });
+        return { s, idx, overlap };
+      })
+      .sort((a, b) => b.overlap - a.overlap || a.idx - b.idx)
+      .slice(0, 4)
+      .sort((a, b) => a.idx - b.idx)
+      .map((r) => r.s)
+      .join(" ");
     const tag = h.chunk.source === "live" ? "your current data" : "the EventForge guide";
-    return `From ${tag} (${h.chunk.heading}):\n${sentences}`;
+    return `From ${tag} (${h.chunk.heading}):\n${ranked}`;
   });
   return `${parts.join("\n\n")}\n\nAnything more specific — a particular event, session, or attendee?`;
 }
