@@ -242,11 +242,13 @@ router.post(
   authMiddleware,
   body("question").trim().notEmpty().isLength({ max: 1000 }),
   body("history").optional().isArray({ max: 12 }),
+  body("mode").optional().isIn(["auto", "extractive"]),
   validate,
   async (req: AuthRequest, res) => {
-    const { question, history = [] } = req.body as {
+    const { question, history = [], mode = "auto" } = req.body as {
       question: string;
       history?: Array<{ role: string; text: string }>;
+      mode?: "auto" | "extractive";
     };
     const cleanHistory = (Array.isArray(history) ? history : [])
       .filter((h) => h && (h.role === "user" || h.role === "assistant") && typeof h.text === "string")
@@ -257,8 +259,8 @@ router.post(
       role: req.user!.role,
       name: req.user!.name,
       email: req.user!.email,
-    }, cleanHistory);
-    res.json({ ...result, model: "rag-v2" });
+    }, cleanHistory, { mode });
+    res.json({ ...result, model: mode === "extractive" ? "rag-v2" : "rag-v2+nex-n2.5-mini" });
   }
 );
 

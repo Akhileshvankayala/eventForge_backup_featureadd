@@ -257,11 +257,14 @@ export async function buildLiveContext(user: SnapshotUser): Promise<LiveContext>
     return { chunks, events, attendees: [], sessions: [], ticketTypes: [], staffSide, isAdmin };
   }
 
-  const [attendees, sessions, ticketTypes] = await Promise.all([
+  const [attendees, sessions, ticketTypes, speakers] = await Promise.all([
     getCollection("attendees").find({ eventId: { $in: eventIds } }).toArray() as Promise<any[]>,
     getCollection("sessions").find({ eventId: { $in: eventIds } }).sort({ startTime: 1 }).toArray() as Promise<any[]>,
     getCollection("ticketTypes").find({ eventId: { $in: eventIds } }).toArray() as Promise<any[]>,
+    getCollection("speakers").find({ eventId: { $in: eventIds } }).toArray() as Promise<any[]>,
   ]);
+  const speakerName = new Map<string, string>();
+  for (const sp of speakers) speakerName.set(sp._id.toString(), sp.name || "Unnamed speaker");
 
   for (const e of events) {
     const eid = e._id.toString();
@@ -276,7 +279,10 @@ export async function buildLiveContext(user: SnapshotUser): Promise<LiveContext>
       `Dates: ${new Date(e.startDate).toISOString().slice(0, 10)} → ${new Date(e.endDate).toISOString().slice(0, 10)}. Capacity ${e.capacity ?? "TBA"}.`,
       `Registrations: ${evAtt.length} total — ${approved} approved or completed, ${pending} pending approval, ${waitlisted} waitlisted.`,
       evSes.length
-        ? `Sessions (${evSes.length}): ` + evSes.map((s) => `${s.title} (${s.roomName || "room TBA"}, ${s.startTime ? new Date(s.startTime).toISOString().slice(11, 16) : "time TBA"}, ${s.type || "session"})`).join("; ") + "."
+        ? `Sessions (${evSes.length}): ` + evSes.map((s) => {
+            const names = (s.speakerIds || []).map((id: any) => speakerName.get(id.toString()) || "Unknown").join(", ");
+            return `${s.title} (${s.roomName || "room TBA"}, ${s.startTime ? new Date(s.startTime).toISOString().slice(11, 16) : "time TBA"}${s.endTime ? `–${new Date(s.endTime).toISOString().slice(11, 16)}` : ""}, ${s.type || "session"}${names ? `, speakers: ${names}` : ", no speakers assigned"})`;
+          }).join("; ") + "."
         : "No sessions scheduled yet.",
       evTix.length
         ? `Ticket types: ` + evTix.map((t) => `${t.name} ($${t.price}, ${t.remainingQuantity ?? "?"} left)`).join("; ") + "."
@@ -416,7 +422,12 @@ export interface Answer {
   sources: Array<{ heading: string; source: "guide" | "live" }>;
 }
 
-export async function answer(question: string, user: SnapshotUser, history: HistoryTurn[] = []): Promise<Answer> {
+export async function answer(
+  question: string,
+  user: SnapshotUser,
+  history: HistoryTurn[] = [],
+  opts: { mode?: "auto" | "extractive" } = {},
+): Promise<Answer> {
   // Resolve follow-ups ("how many of them?", "and the second one?") by
   // carrying the previous user question's nouns into retrieval.
   const priorNouns = history
@@ -429,15 +440,9 @@ export async function answer(question: string, user: SnapshotUser, history: Hist
   const ctx = await buildLiveContext(user);
   const intent = routeIntent(question);
   const structured = intent === "HOWTO" || intent === "GENERIC" ? null : resolveStructured(intent, question, ctx, user);
-  if (structured) {
-    return {
-      text: `${structured}\n\nWant detail on any of these — a specific event, session, or attendee?`,
-      sources: [{ heading: "live records", source: "live" as const }],
-    };
-  }
 
   const guide = loadGuideChunks();
-  const scored = retrieve(retrievalQuery, [...ctx.chunks, ...guide], 3);
+  const scored = retrieve(retrievalQuery, [...ctx.chunks, ...guide], 4);
   // Possessive/personal questions ("my events", "what do I have") are about
   // live data — bias toward the user's own records.
   const personal = /\b(my|mine|i have|do i|can i|for me)\b/i.test(question);
@@ -445,6 +450,35 @@ export async function answer(question: string, user: SnapshotUser, history: Hist
     ...h,
     score: h.score + (personal && h.chunk.source === "live" ? 0.12 : 0),
   })).sort((a, b) => b.score - a.score);
+
+  // Generative path: ground the model in the exact structured facts plus the
+  // retrieved chunks. Falls through to extractive on any failure.
+  if ((opts.mode ?? "auto") === "auto") {
+    const { generate } = await import("./generator.js");
+    const contextText = [
+      structured ? `Verified facts:\n${structured}` : "",
+      ...hits.filter((h) => h.score > 0.008).map(
+        (h) => `[${h.chunk.source === "live" ? "user's live records" : "product guide"} — ${h.chunk.heading}]\n${h.chunk.text.slice(0, 1200)}`
+      ),
+    ].filter(Boolean).join("\n\n");
+    if (contextText.trim()) {
+      const generated = await generate({ question, history, contextText, userName: user.name, userRole: user.role });
+      if (generated) {
+        return {
+          text: generated,
+          sources: hits.filter((h) => h.score > 0.008).slice(0, 3).map((h) => ({ heading: h.chunk.heading, source: h.chunk.source })),
+        };
+      }
+    }
+  }
+
+  if (structured) {
+    return {
+      text: `${structured}\n\nWant detail on any of these — a specific event, session, or attendee?`,
+      sources: [{ heading: "live records", source: "live" as const }],
+    };
+  }
+
   const useful = hits.filter((h) => h.score > 0.015);
   if (!useful.length) {
     return {
