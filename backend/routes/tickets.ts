@@ -45,6 +45,7 @@ router.post(
   async (req: AuthRequest, res) => {
     const data = {
       ...req.body,
+      eventId: new ObjectId(req.body.eventId),
       remainingQuantity: req.body.totalQuantity,
       soldQuantity: 0,
       status: "active",

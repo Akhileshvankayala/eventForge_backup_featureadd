@@ -47,7 +47,11 @@ router.post(
   body("currency").notEmpty(),
   validate,
   async (req: AuthRequest, res) => {
-    const data = { ...req.body, organizerId: new ObjectId(req.user!.id) };
+    const data = {
+      ...req.body,
+      organizerId: new ObjectId(req.user!.id),
+      venueId: req.body.venueId ? new ObjectId(req.body.venueId) : undefined,
+    };
     const event = await createEvent(data);
     res.status(201).json(event);
   }
