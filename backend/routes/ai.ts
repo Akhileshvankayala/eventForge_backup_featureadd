@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { body } from "express-validator";
-import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
+import { buildLiveChunks, composeAnswer, loadGuideChunks, retrieve } from "../lib/rag.js";
+import { refreshKnowledgePdf } from "../lib/knowledgePdf.js";
 
 // Mock AI endpoints that return generated draft text.
 // In production these would call an LLM API; here we return plausible drafts.
@@ -233,5 +235,40 @@ router.post(
     });
   }
 );
+
+// ─── Copilot Q&A over the knowledge base (guide + live user-scoped data) ─────
+router.post(
+  "/ask",
+  authMiddleware,
+  body("question").trim().notEmpty().isLength({ max: 1000 }),
+  validate,
+  async (req: AuthRequest, res) => {
+    const { question } = req.body as { question: string };
+    const guide = loadGuideChunks();
+    const live = await buildLiveChunks({
+      id: req.user!.id,
+      role: req.user!.role,
+      name: req.user!.name,
+      email: req.user!.email,
+    });
+    const hits = retrieve(question, [...live, ...guide], 3);
+    const text = composeAnswer(question, hits);
+    res.json({
+      text,
+      sources: hits.filter((h) => h.score > 0.02).map((h) => ({ heading: h.chunk.heading, source: h.chunk.source })),
+      model: "rag-v1",
+    });
+  }
+);
+
+// ─── Regenerate the knowledge PDF (includes live counts appendix) ────────────
+router.post("/knowledge/refresh", requireRole("admin", "organizer"), async (_req, res) => {
+  try {
+    const { generatedAt } = await refreshKnowledgePdf();
+    res.json({ ok: true, generatedAt });
+  } catch (err) {
+    res.status(500).json({ error: "PDF refresh failed" });
+  }
+});
 
 export default router;
