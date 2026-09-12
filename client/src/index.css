@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.8rem;
+  --background: oklch(0.975 0.008 90);
+  --foreground: oklch(0.22 0.045 215);
+  --card: oklch(0.99 0.003 90);
+  --card-foreground: oklch(0.22 0.045 215);
+  --popover: oklch(0.99 0.003 90);
+  --popover-foreground: oklch(0.22 0.045 215);
+  --primary: oklch(0.28 0.06 215);
+  --primary-foreground: oklch(0.98 0.005 90);
+  --secondary: oklch(0.94 0.025 90);
+  --secondary-foreground: oklch(0.28 0.06 215);
+  --muted: oklch(0.94 0.02 90);
+  --muted-foreground: oklch(0.51 0.025 215);
+  --accent: oklch(0.73 0.14 34);
+  --accent-foreground: oklch(0.22 0.045 215);
+  --destructive: oklch(0.63 0.2 25);
+  --destructive-foreground: oklch(0.98 0.005 90);
+  --border: oklch(0.87 0.015 90);
+  --input: oklch(0.87 0.015 90);
+  --ring: oklch(0.73 0.14 34);
+  --ink: #143641;
+  --coral: #f07b67;
+  --mint: #96bfa7;
+  --lilac: #c4b2de;
+  font-family: 'DM Sans', sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+* { box-sizing: border-box; }
+html { background: #f6f4ee; }
+body { margin: 0; min-width: 320px; background: #f6f4ee; color: var(--ink); }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.font-display { font-family: 'Manrope', sans-serif; }
+.text-ink { color: var(--ink); }
+.bg-ink { background-color: var(--ink); }
+.text-coral { color: var(--coral); }
+.bg-coral { background-color: var(--coral); }
+
+.eventforge-shell {
+  background:
+    radial-gradient(circle at 75% -10%, rgba(246, 200, 181, .25), transparent 30%),
+    radial-gradient(circle at 17% 70%, rgba(196, 178, 222, .12), transparent 27%),
+    #f6f4ee;
+  position: relative;
+}
+.eventforge-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .32;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+.glass-card {
+  border: 1px solid rgba(255,255,255,.9);
+  background: linear-gradient(145deg, rgba(255,255,255,.73), rgba(255,255,255,.36));
+  backdrop-filter: blur(22px);
+}
+.clay-card { border: 1px solid rgba(255,255,255,.18); }
+.robot-card { isolation: isolate; }
+.spline-wrap canvas { width: 100% !important; height: 100% !important; }
+
+.animate-rise { animation: rise .6s cubic-bezier(.23,1,.32,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .glass-card, .clay-card, .nav-item, button { transition-timing-function: cubic-bezier(.23, 1, .32, 1); }
+}
+
+@media (max-width: 639px) {
+  .topbar { padding-top: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
+}
+
+/* EventForge identity: a signal, a room, and the initials that bring them together. */
+.eventforge-mark { position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(145deg, #173944 0%, #0e2831 62%, #f07b67 63%, #f07b67 100%) !important; box-shadow: 0 10px 24px rgba(14,40,49,.18), inset 0 1px 0 rgba(255,255,255,.18); transition: transform .18s ease, box-shadow .18s ease; }
+.eventforge-mark::before { content: ""; position: absolute; z-index: -1; right: -7px; top: -7px; width: 22px; height: 22px; border: 3px solid rgba(255,255,255,.72); border-radius: 50%; }
+.eventforge-mark::after { content: ""; position: absolute; z-index: -1; left: -8px; bottom: 5px; width: 30px; height: 3px; border-radius: 999px; background: rgba(229,238,233,.62); transform: rotate(-35deg); }
+.eventforge-mark:hover { transform: translateY(-1px) rotate(-2deg); box-shadow: 0 13px 28px rgba(14,40,49,.23), inset 0 1px 0 rgba(255,255,255,.18); }
