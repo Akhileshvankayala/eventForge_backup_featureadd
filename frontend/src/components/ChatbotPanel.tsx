@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Sparkles, SendHorizontal, Loader2, X, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePersistFn } from "@/hooks/usePersistFn";
+import { baseUrl } from "@/lib/api";
 
 type MessageRole = "user" | "assistant" | "system";
 type Message = { role: MessageRole; text: string; timestamp?: number };
@@ -26,7 +27,7 @@ const RECOMMEND_QUICK_ACTIONS: QuickAction[] = [
   { label: "Deep-dive technical", prompt: "Recommend 3 advanced technical sessions for experienced engineers.", variant: "outline" },
 ];
 
-const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || "/api/ai";
+const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || `${baseUrl}/api/ai`;
 
 interface ChatbotPanelProps {
   eventTitle?: string;

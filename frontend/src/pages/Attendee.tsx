@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import { baseUrl } from "@/lib/api";
 import {
   ArrowLeft,
   ArrowRight,
@@ -160,7 +161,7 @@ export default function Attendee() {
     setEventsLoading(true);
     setEventsError(null);
     try {
-      const response = await fetch("/api/public/events");
+      const response = await fetch(`${baseUrl}/api/public/events`);
       if (!response.ok) throw new Error(`Could not load events (${response.status})`);
       const data = (await response.json()) as PublicEvent[];
       setEvents(Array.isArray(data) ? data : []);
@@ -173,7 +174,7 @@ export default function Attendee() {
 
   async function loadRegistrations(token: string) {
     try {
-      const response = await fetch("/api/attendees/my-registrations", {
+      const response = await fetch(`${baseUrl}/api/attendees/my-registrations`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) return;
@@ -186,7 +187,7 @@ export default function Attendee() {
 
   async function loadMe(token: string) {
     try {
-      const response = await fetch("/api/auth/me", {
+      const response = await fetch(`${baseUrl}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) return;
@@ -207,12 +208,27 @@ export default function Attendee() {
   }
 
   useEffect(() => {
-    void loadEvents();
-    const token = localStorage.getItem("eventforge_token");
-    if (token) {
-      void loadMe(token);
-      void loadRegistrations(token);
-    }
+    const refreshDashboard = () => {
+      void loadEvents();
+      const token = localStorage.getItem("eventforge_token");
+      if (token) {
+        void loadMe(token);
+        void loadRegistrations(token);
+      }
+    };
+
+    void refreshDashboard();
+    const handleRefresh = () => void refreshDashboard();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "eventforge:analytics:refresh") handleRefresh();
+    };
+    window.addEventListener("eventforge:analytics:refresh", handleRefresh);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("eventforge:analytics:refresh", handleRefresh);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   async function bookEvent(event: PublicEvent) {
@@ -227,7 +243,7 @@ export default function Attendee() {
     if (registeredIds.has(event.id)) return;
     setBookingId(event.id);
     try {
-      const ttRes = await fetch(`/api/tickets/event/${event.id}`, {
+      const ttRes = await fetch(`${baseUrl}/api/tickets/event/${event.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!ttRes.ok) throw new Error("Could not load tickets for this event");
@@ -253,7 +269,7 @@ export default function Attendee() {
         navigate(`/auth?event=${encodeURIComponent(event.title)}`);
         return;
       }
-      const regRes = await fetch("/api/attendees/register", {
+      const regRes = await fetch(`${baseUrl}/api/attendees/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -280,7 +296,10 @@ export default function Attendee() {
           description: `You're on the list for ${event.title}.`,
         });
       }
+      localStorage.setItem("eventforge:analytics:refresh", String(Date.now()));
+      window.dispatchEvent(new CustomEvent("eventforge:analytics:refresh"));
       await loadRegistrations(token);
+      await loadEvents();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Booking failed");
     } finally {

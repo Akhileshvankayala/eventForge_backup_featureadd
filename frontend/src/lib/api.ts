@@ -1,4 +1,5 @@
 export const TOKEN_KEY = "eventforge_token";
+export const baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 function getToken(): string | null {
   try {
@@ -16,7 +17,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(`${baseUrl}${path}`, { ...init, headers });
 
   const text = await res.text();
   let data: unknown = null;
@@ -48,4 +49,3 @@ export const api = {
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
-export const baseUrl = "";

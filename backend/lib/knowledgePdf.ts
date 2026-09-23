@@ -25,7 +25,11 @@ export function refreshKnowledgePdf(): Promise<{ generatedAt: string }> {
       const tmp = mkdtempSync(join(tmpdir(), "ef-kb-"));
       const snapPath = join(tmp, "snapshot.json");
       writeFileSync(snapPath, JSON.stringify({ generatedAt, counts }));
-      const script = join(DIR, "..", "knowledge", "build-pdf.mjs");
+      const { existsSync } = await import("node:fs");
+      let script = join(DIR, "..", "knowledge", "build-pdf.mjs");
+      if (!existsSync(script)) {
+        script = join(DIR, "..", "backend", "knowledge", "build-pdf.mjs");
+      }
       execFile(process.execPath, [script, `--snapshot=${snapPath}`], (err) => {
         if (err) reject(err);
         else resolve({ generatedAt });

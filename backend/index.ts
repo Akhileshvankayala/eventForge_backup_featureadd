@@ -46,7 +46,15 @@ async function startServer() {
 
   // Middleware
   app.use(helmet({ contentSecurityPolicy: false })); // CSP off: SPA uses inline runtime scripts
-  app.use(cors());
+  const allowedOrigins = (process.env.FRONTEND_URL || process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  app.use(
+    cors({
+      origin: allowedOrigins.length ? allowedOrigins : true,
+    }),
+  );
   app.use(express.json({ limit: "100kb" }));
   app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
@@ -63,6 +71,9 @@ async function startServer() {
   // SEO/discoverability for the SPA shell.
   app.get("/robots.txt", (_req, res) => {
     res.type("text/plain").send("User-agent: *\nAllow: /\nAllow: /api/public/\nDisallow: /api/\n");
+  });
+  app.get("/healthz", (_req, res) => {
+    res.status(200).json({ ok: true });
   });
   app.get("/sitemap.xml", (_req, res) => {
     const base = process.env.PUBLIC_BASE_URL || "http://localhost:3000";

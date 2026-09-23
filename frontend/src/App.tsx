@@ -5,6 +5,7 @@ import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import type { UserRole } from "./contexts/AuthContext";
+import { LanguageProvider } from "./i18n";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Attendee from "./pages/Attendee";
 import Auth from "./pages/Auth";
@@ -51,12 +52,14 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster position="bottom-right" />
-            <Router />
-          </TooltipProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster position="bottom-right" />
+              <Router />
+            </TooltipProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

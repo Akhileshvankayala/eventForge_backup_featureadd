@@ -64,6 +64,8 @@ router.post(
       ...req.body,
       organizerId: new ObjectId(req.user!.id),
       venueId: req.body.venueId ? new ObjectId(req.body.venueId) : undefined,
+      status: req.body.status === "draft" || req.body.status === undefined ? "published" : req.body.status,
+      visibility: "public",
     };
     const event = await createEvent(data);
     res.status(201).json(event);
@@ -89,7 +91,15 @@ router.patch(
     if (event.organizerId.toString() !== req.user!.id && req.user!.role !== "admin") {
       return res.status(403).json({ error: "Not authorized to edit this event" });
     }
-    const updated = await updateEvent(req.params.id, req.body);
+
+    const nextStatus = req.body.status === "draft" ? "published" : req.body.status ?? event.status;
+    const nextVisibility = req.body.visibility ?? (nextStatus === "published" ? "public" : event.visibility);
+
+    const updated = await updateEvent(req.params.id, {
+      ...req.body,
+      status: nextStatus,
+      visibility: nextStatus === "published" ? "public" : nextVisibility,
+    });
     res.json(updated);
   }
 );

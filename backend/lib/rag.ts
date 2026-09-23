@@ -25,8 +25,13 @@ export interface HistoryTurn {
   text: string;
 }
 
+import { existsSync } from "node:fs";
+
 const DIR = dirname(fileURLToPath(import.meta.url));
-const GUIDE_PATH = join(DIR, "..", "knowledge", "guide.md");
+let GUIDE_PATH = join(DIR, "..", "knowledge", "guide.md");
+if (!existsSync(GUIDE_PATH)) {
+  GUIDE_PATH = join(DIR, "..", "backend", "knowledge", "guide.md");
+}
 
 // ─── Text normalization ──────────────────────────────────────────────────────
 
