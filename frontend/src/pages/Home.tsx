@@ -516,10 +516,10 @@ export default function Home() {
             </div>
 
             <div className="robot-card relative min-h-[250px] overflow-hidden rounded-[26px] bg-black shadow-[0_18px_38px_rgba(0,0,0,0.4)]">
-              <div className="spline-wrap absolute inset-0 z-10" aria-label="EventForge assistant robot">
+              <div className="spline-wrap absolute inset-0 z-10 translate-y-6 scale-95 origin-top" aria-label="EventForge assistant robot">
                 <Spline scene="https://prod.spline.design/KpRcOQ8vg4IKts8T/scene.splinecode" />
               </div>
-              <div className="spline-watermark-mask absolute inset-x-0 bottom-0 z-20 h-[50px] bg-black" />
+              <div className="spline-watermark-mask absolute inset-x-0 bottom-0 z-20 h-[80px] bg-black" />
             </div>
           </section>
 
