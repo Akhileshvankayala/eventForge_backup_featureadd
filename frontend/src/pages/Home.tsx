@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import Spline from "@splinetool/react-spline";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -522,6 +523,9 @@ export default function Home() {
                 <span className="eventforge-robot__head"><span className="eventforge-robot__eye" /><span className="eventforge-robot__eye" /></span>
                 <span className="eventforge-robot__body"><Bot className="size-10 text-[#9f503d]" strokeWidth={1.5} /><span className="eventforge-robot__panel" /></span>
                 <span className="eventforge-robot__arm eventforge-robot__arm--left" /><span className="eventforge-robot__arm eventforge-robot__arm--right" />
+              </div>
+              <div className="spline-wrap absolute inset-0 z-10" aria-label="EventForge assistant robot">
+                <Spline scene="https://prod.spline.design/KpRcOQ8vg4IKts8T/scene.splinecode" />
               </div>
               <div className="spline-watermark-mask absolute inset-x-0 bottom-0 z-20 h-[44px] bg-gradient-to-t from-[#efb5a7] via-[#efb5a7]/95 to-transparent" />
             </div>
