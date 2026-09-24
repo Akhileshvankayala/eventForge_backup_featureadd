@@ -515,11 +515,10 @@ export default function Home() {
               <div className="mt-3 flex justify-between text-[9px] font-bold uppercase tracking-[0.13em] text-ink/30"><span>{overview?.velocity?.daily[0] ? shortDayLabel(overview.velocity.daily[0].date) : "—"}</span><span>{overview?.velocity?.daily.length ? shortDayLabel(overview.velocity.daily[overview.velocity.daily.length - 1].date) : "—"}</span></div>
             </div>
 
-            <div className="robot-card relative h-[320px] overflow-hidden rounded-[26px] bg-black shadow-[0_18px_38px_rgba(0,0,0,0.4)]">
-              <div className="spline-wrap absolute inset-0 z-10 scale-[0.85] origin-bottom" aria-label="EventForge assistant robot">
+            <div className="robot-card relative h-[340px] overflow-hidden rounded-[26px] bg-black shadow-[0_18px_38px_rgba(0,0,0,0.4)]">
+              <div className="spline-wrap absolute inset-x-0 top-0 -bottom-24 z-10" aria-label="EventForge assistant robot">
                 <Spline scene="https://prod.spline.design/KpRcOQ8vg4IKts8T/scene.splinecode" />
               </div>
-              <div className="spline-watermark-mask absolute bottom-0 right-0 z-20 h-[60px] w-[200px] bg-black" />
             </div>
           </section>
 
