@@ -516,11 +516,21 @@ export default function Home() {
             </div>
 
             <div className="robot-card relative min-h-[250px] overflow-hidden rounded-[26px] bg-black shadow-[0_18px_38px_rgba(0,0,0,0.4)]">
+  {/* Changed: Removed translate-y-6, scale-95, and updated origin-top to origin-center */}
+  <div className="spline-wrap absolute inset-0 z-10 origin-center" aria-label="EventForge assistant robot">
+    <Spline scene="https://prod.spline.design/KpRcOQ8vg4IKts8T/scene.splinecode" />
+  </div>
+  {/* Changed: Lowered the height from h-[80px] to h-[35px] to unmask the robot base while still hiding the Spline logo */}
+  <div className="spline-watermark-mask absolute inset-x-0 bottom-0 z-20 h-[35px] bg-black" />
+</div>
+
+
+            {/* <div className="robot-card relative min-h-[250px] overflow-hidden rounded-[26px] bg-black shadow-[0_18px_38px_rgba(0,0,0,0.4)]">
               <div className="spline-wrap absolute inset-0 z-10 translate-y-6 scale-95 origin-top" aria-label="EventForge assistant robot">
                 <Spline scene="https://prod.spline.design/KpRcOQ8vg4IKts8T/scene.splinecode" />
               </div>
               <div className="spline-watermark-mask absolute inset-x-0 bottom-0 z-20 h-[80px] bg-black" />
-            </div>
+            </div> */}
           </section>
 
           <section className="mt-5 grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
