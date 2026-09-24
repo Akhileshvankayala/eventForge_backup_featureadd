@@ -553,14 +553,14 @@ export default function Attendee() {
             <div className="mt-4 flex items-center gap-3 rounded-[11px] border border-ink/7 bg-white/50 px-4 py-3 text-[11px] text-ink/55">
               <Users size={14} className="shrink-0 text-ink/30" />
               <span className="flex-1">
-                68 attendees with similar tastes also booked{" "}
+                Explore the schedule and ticket options for{" "}
                 <span className="font-black text-ink/70">
-                  {events[0]?.title ?? "this event"}
+                  {events[0]?.title ?? "your next event"}
                 </span>
                 .
               </span>
-              <button className="shrink-0 rounded-full bg-ink px-3 py-1 text-[9px] font-black text-white transition hover:bg-[#264c59]">
-                View their agendas
+              <button onClick={() => document.getElementById("attendee-events")?.scrollIntoView({ behavior: "smooth" })} className="shrink-0 rounded-full bg-ink px-3 py-1 text-[9px] font-black text-white transition hover:bg-[#264c59]">
+                Browse events
               </button>
             </div>
           </div>

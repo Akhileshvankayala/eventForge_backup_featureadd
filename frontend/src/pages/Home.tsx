@@ -4,6 +4,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Bell,
+  Bot,
   CalendarDays,
   Check,
   ChevronDown,
@@ -516,6 +517,12 @@ export default function Home() {
             <div className="robot-card relative min-h-[250px] overflow-hidden rounded-[26px] border border-[#f6c8b5]/35 bg-[radial-gradient(circle_at_78%_18%,rgba(255,255,255,.56),transparent_28%),linear-gradient(135deg,#f8d5c7_0%,#f6c8b5_52%,#efb5a7_100%)] shadow-[0_18px_38px_rgba(174,106,84,0.16)]">
               <div className="absolute -left-16 -top-20 size-56 rounded-full border-[28px] border-white/20" />
               <div className="absolute -bottom-24 -left-12 size-48 rounded-full border-[22px] border-white/15" />
+              <div className="eventforge-robot absolute inset-x-0 bottom-5 z-10 mx-auto h-[190px] w-[180px]" aria-hidden="true">
+                <span className="eventforge-robot__antenna" />
+                <span className="eventforge-robot__head"><span className="eventforge-robot__eye" /><span className="eventforge-robot__eye" /></span>
+                <span className="eventforge-robot__body"><Bot className="size-10 text-[#9f503d]" strokeWidth={1.5} /><span className="eventforge-robot__panel" /></span>
+                <span className="eventforge-robot__arm eventforge-robot__arm--left" /><span className="eventforge-robot__arm eventforge-robot__arm--right" />
+              </div>
               <div className="spline-watermark-mask absolute inset-x-0 bottom-0 z-20 h-[44px] bg-gradient-to-t from-[#efb5a7] via-[#efb5a7]/95 to-transparent" />
             </div>
           </section>
