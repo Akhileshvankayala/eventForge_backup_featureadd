@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { baseUrl } from "@/lib/api";
+import { api } from "@/lib/api";
 import {
   ArrowLeft,
   ArrowRight,
@@ -47,8 +48,21 @@ interface AuthUser {
 interface TicketType {
   _id?: string;
   id?: string;
+  name?: string;
+  price?: number;
+  currency?: string;
   status?: string;
   remainingQuantity?: number;
+}
+
+interface EventSession {
+  _id: string;
+  title: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  roomName?: string;
+  type?: string;
 }
 
 type CardColor = "coral" | "mint" | "lilac";
@@ -61,14 +75,20 @@ function colorFor(index: number): CardColor {
 function locationOf(event: PublicEvent): string {
   if (!event.venue) return "Online experience";
   const parts = [event.venue.name, event.venue.city].filter(Boolean);
-  return parts.length > 0 ? (parts as string[]).join(" · ") : "Online experience";
+  return parts.length > 0
+    ? (parts as string[]).join(" · ")
+    : "Online experience";
 }
 
 function formatDates(start?: string, end?: string): string {
   const s = start ? new Date(start) : null;
   const e = end ? new Date(end) : null;
   const fmtDay = (d: Date) =>
-    d.toLocaleString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+    d.toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
   if (s && !Number.isNaN(s.getTime())) {
     if (e && !Number.isNaN(e.getTime()) && e.getTime() !== s.getTime()) {
       const sameMonth =
@@ -85,6 +105,16 @@ function formatDates(start?: string, end?: string): string {
     return fmtDay(s);
   }
   return "Dates TBA";
+}
+
+function fmtTime(iso?: string): string {
+  if (!iso) return "--:--";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "--:--";
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function labelOf(event: PublicEvent): string {
@@ -151,22 +181,46 @@ export default function Attendee() {
   const [registrations, setRegistrations] = useState<unknown[]>([]);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [detailsEvent, setDetailsEvent] = useState<PublicEvent | null>(null);
+  const [detailsSessions, setDetailsSessions] = useState<EventSession[]>([]);
+  const [detailsTickets, setDetailsTickets] = useState<TicketType[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const registeredIds = useMemo(
     () => new Set(registrations.map(registrationEventId).filter(Boolean)),
-    [registrations],
+    [registrations]
   );
+
+  async function openEventDetails(event: PublicEvent) {
+    setDetailsEvent(event);
+    setDetailsLoading(true);
+    try {
+      const [sessions, tickets] = await Promise.all([
+        api
+          .get<EventSession[]>(`/api/sessions?eventId=${event.id}`)
+          .catch(() => []),
+        api.get<TicketType[]>(`/api/tickets/event/${event.id}`).catch(() => []),
+      ]);
+      setDetailsSessions(Array.isArray(sessions) ? sessions : []);
+      setDetailsTickets(Array.isArray(tickets) ? tickets : []);
+    } finally {
+      setDetailsLoading(false);
+    }
+  }
 
   async function loadEvents() {
     setEventsLoading(true);
     setEventsError(null);
     try {
       const response = await fetch(`${baseUrl}/api/public/events`);
-      if (!response.ok) throw new Error(`Could not load events (${response.status})`);
+      if (!response.ok)
+        throw new Error(`Could not load events (${response.status})`);
       const data = (await response.json()) as PublicEvent[];
       setEvents(Array.isArray(data) ? data : []);
     } catch (err) {
-      setEventsError(err instanceof Error ? err.message : "Could not load events");
+      setEventsError(
+        err instanceof Error ? err.message : "Could not load events"
+      );
     } finally {
       setEventsLoading(false);
     }
@@ -174,9 +228,12 @@ export default function Attendee() {
 
   async function loadRegistrations(token: string) {
     try {
-      const response = await fetch(`${baseUrl}/api/attendees/my-registrations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `${baseUrl}/api/attendees/my-registrations`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       if (!response.ok) return;
       const data = (await response.json()) as unknown[];
       setRegistrations(Array.isArray(data) ? data : []);
@@ -250,14 +307,18 @@ export default function Attendee() {
       const types = (await ttRes.json()) as TicketType[];
       const list = Array.isArray(types) ? types : [];
       const available = list.find(
-        (t) => (t.status ?? "active") === "active" && (t.remainingQuantity ?? 0) > 0,
+        t =>
+          (t.status ?? "active") === "active" && (t.remainingQuantity ?? 0) > 0
       );
       const ticketTypeId = available?._id ?? available?.id;
       if (!ticketTypeId) {
         toast.error("No tickets available for this event yet");
         return;
       }
-      const nameParts = (authUser?.name ?? "").trim().split(/\s+/).filter(Boolean);
+      const nameParts = (authUser?.name ?? "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
       const firstName = nameParts[0] ?? "Guest";
       const lastName = nameParts.slice(1).join(" ") || firstName;
       const email = authUser?.email ?? "";
@@ -274,7 +335,13 @@ export default function Attendee() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ eventId: event.id, ticketTypeId, firstName, lastName, email }),
+        body: JSON.stringify({
+          eventId: event.id,
+          ticketTypeId,
+          firstName,
+          lastName,
+          email,
+        }),
       });
       const data = (await regRes.json().catch(() => ({}))) as {
         error?: string;
@@ -306,8 +373,8 @@ export default function Attendee() {
     }
   }
 
-  const filtered = events.filter((e) =>
-    e.title.toLowerCase().includes(search.toLowerCase()),
+  const filtered = events.filter(e =>
+    e.title.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -353,7 +420,8 @@ export default function Attendee() {
               <span className="text-coral">yes.</span>
             </h1>
             <p className="mt-5 max-w-[450px] text-[13px] leading-6 text-ink/55">
-              Browse your event calendar, save your tickets, and make an agenda that feels like you.
+              Browse your event calendar, save your tickets, and make an agenda
+              that feels like you.
             </p>
           </div>
           <div className="rounded-[18px] border border-white bg-white/60 p-4 shadow-[0_12px_26px_rgba(47,59,61,0.06)]">
@@ -374,7 +442,11 @@ export default function Attendee() {
             </div>
             <div className="mt-4 flex items-center gap-2 text-[11px] text-ink/50">
               <button
-                onClick={() => document.getElementById("attendee-events")?.scrollIntoView({ behavior: "smooth" })}
+                onClick={() =>
+                  document
+                    .getElementById("attendee-events")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
                 className="flex items-center gap-1.5 rounded-full bg-[#e5eee9] px-3 py-1 font-bold text-ink/70 transition hover:bg-[#d5e6da] hover:text-ink"
               >
                 <PlusIcon size={12} />
@@ -403,7 +475,8 @@ export default function Attendee() {
                   Suggested for you
                 </h2>
                 <p className="mt-1.5 text-[12px] text-ink/50">
-                  Based on your interests and the sessions you&apos;ve bookmarked, here are the ones worth a closer look.
+                  Based on your interests and the sessions you&apos;ve
+                  bookmarked, here are the ones worth a closer look.
                 </p>
               </div>
               <button
@@ -421,51 +494,58 @@ export default function Attendee() {
               {events.slice(0, 2).map((event, index) => {
                 const color = colorFor(index);
                 return (
-                <div
-                  key={event.id}
-                  className="flex items-start gap-3 rounded-[14px] border border-ink/7 bg-white/50 p-4 transition hover:bg-white hover:border-ink/10"
-                >
                   <div
-                    className={`mt-0.5 grid size-10 place-items-center rounded-[11px] text-[13px] font-black ${
-                      color === "coral"
-                        ? "bg-[#f6c8b5] text-[#9f503d]"
-                        : color === "mint"
-                        ? "bg-[#dbece1] text-[#39825f]"
-                        : "bg-[#e8e0f4] text-[#6b5792]"
-                    }`}
+                    key={event.id}
+                    className="flex items-start gap-3 rounded-[14px] border border-ink/7 bg-white/50 p-4 transition hover:bg-white hover:border-ink/10"
                   >
-                    <CalendarDays size={18} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-[12px] font-black text-ink">{event.title}</p>
-                      <span className="shrink-0 rounded-full bg-ink/6 px-1.5 py-0.5 text-[9px] font-bold text-ink/45">
-                        {labelOf(event)}
-                      </span>
+                    <div
+                      className={`mt-0.5 grid size-10 place-items-center rounded-[11px] text-[13px] font-black ${
+                        color === "coral"
+                          ? "bg-[#f6c8b5] text-[#9f503d]"
+                          : color === "mint"
+                            ? "bg-[#dbece1] text-[#39825f]"
+                            : "bg-[#e8e0f4] text-[#6b5792]"
+                      }`}
+                    >
+                      <CalendarDays size={18} />
                     </div>
-                    <p className="mt-1 flex items-center gap-1 text-[10px] text-ink/45">
-                      <MapPin size={10} />
-                      {locationOf(event)}
-                      <span className="mx-1 text-ink/20">·</span>
-                      {formatDates(event.startDate, event.endDate)}
-                    </p>
-                    <p className="mt-1.5 text-[11px] text-ink/55">{event.description}</p>
-                    <div className="mt-3 flex items-center gap-3">
-                      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-ink/40">
-                        {topicsLine(event)}
-                      </span>
-                      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-ink/40">
-                        {registeredIds.has(event.id) ? "Ticket saved" : "Open registration"}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-[12px] font-black text-ink">
+                          {event.title}
+                        </p>
+                        <span className="shrink-0 rounded-full bg-ink/6 px-1.5 py-0.5 text-[9px] font-bold text-ink/45">
+                          {labelOf(event)}
+                        </span>
+                      </div>
+                      <p className="mt-1 flex items-center gap-1 text-[10px] text-ink/45">
+                        <MapPin size={10} />
+                        {locationOf(event)}
+                        <span className="mx-1 text-ink/20">·</span>
+                        {formatDates(event.startDate, event.endDate)}
+                      </p>
+                      <p className="mt-1.5 text-[11px] text-ink/55">
+                        {event.description}
+                      </p>
+                      <div className="mt-3 flex items-center gap-3">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-ink/40">
+                          {topicsLine(event)}
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-ink/40">
+                          {registeredIds.has(event.id)
+                            ? "Ticket saved"
+                            : "Open registration"}
+                        </span>
+                      </div>
                     </div>
+                    <button
+                      aria-label={`View ${event.title}`}
+                      onClick={() => void openEventDetails(event)}
+                      className="grid size-9 place-items-center rounded-full bg-ink/5 text-ink/45 transition hover:bg-ink hover:text-white"
+                    >
+                      <ArrowRight size={14} />
+                    </button>
                   </div>
-                  <button
-                    aria-label={`View ${event.title}`}
-                    className="grid size-9 place-items-center rounded-full bg-ink/5 text-ink/45 transition hover:bg-ink hover:text-white"
-                  >
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
                 );
               })}
             </div>
@@ -474,7 +554,10 @@ export default function Attendee() {
               <Users size={14} className="shrink-0 text-ink/30" />
               <span className="flex-1">
                 68 attendees with similar tastes also booked{" "}
-                <span className="font-black text-ink/70">{events[0]?.title ?? "this event"}</span>.
+                <span className="font-black text-ink/70">
+                  {events[0]?.title ?? "this event"}
+                </span>
+                .
               </span>
               <button className="shrink-0 rounded-full bg-ink px-3 py-1 text-[9px] font-black text-white transition hover:bg-[#264c59]">
                 View their agendas
@@ -485,7 +568,7 @@ export default function Attendee() {
 
         <section id="attendee-events" className="grid gap-5 sm:grid-cols-3">
           {eventsLoading ? (
-            [0, 1, 2].map((i) => (
+            [0, 1, 2].map(i => (
               <div
                 key={i}
                 className="rounded-[22px] border border-white bg-white/70 p-5 shadow-[0_10px_22px_rgba(47,59,61,0.06)] sm:p-6"
@@ -527,86 +610,207 @@ export default function Attendee() {
               const isRegistered = registeredIds.has(event.id);
               const isBooking = bookingId === event.id;
               return (
-            <div
-              key={event.id}
-              className="group relative rounded-[22px] border border-white bg-white/70 p-5 shadow-[0_10px_22px_rgba(47,59,61,0.06)] transition hover:-translate-y-1 sm:p-6"
-            >
-              <div
-                className={`mb-4 grid size-14 place-items-center rounded-[16px] ${
-                  color === "coral"
-                    ? "bg-[#f6c8b5]"
-                    : color === "mint"
-                    ? "bg-[#dbece1]"
-                    : "bg-[#e8e0f4]"
-                }`}
-              >
-                <CalendarDays
-                  size={26}
-                  className={
-                    color === "coral"
-                      ? "text-[#9f503d]"
-                      : color === "mint"
-                      ? "text-[#39825f]"
-                      : "text-[#6b5792]"
-                  }
-                />
-              </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/35">
-                {labelOf(event)}
-              </p>
-              <h3 className="mt-2 font-display text-[24px] font-bold tracking-[-0.05em]">
-                {event.title}
-              </h3>
-              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-ink/45">
-                <MapPin size={11} />
-                {locationOf(event)}
-                <span className="mx-1 text-ink/20">·</span>
-                {formatDates(event.startDate, event.endDate)}
-              </p>
-              <p className="mt-3 text-[12px] text-ink/55">{event.description}</p>
-              <div className="mt-4 flex items-center gap-3 text-[10px] font-bold text-ink/40">
-                <span>{topicsLine(event)}</span>
-                <span className="w-px h-3 bg-ink/8" />
-                <span>{isRegistered ? "Ticket saved" : "Open registration"}</span>
-              </div>
-              <button
-                onClick={() => void bookEvent(event)}
-                disabled={isBooking || isRegistered}
-                className={`mt-4 w-full rounded-[11px] py-2.5 text-[11px] font-black transition ${
-                  color === "coral"
-                    ? "bg-coral text-ink shadow-[0_9px_18px_rgba(240,123,103,0.22)] hover:bg-[#f58c79]"
-                    : color === "mint"
-                    ? "bg-[#8dbea2] text-ink hover:bg-[#7bb38f]"
-                    : "bg-[#b5a2d8] text-ink hover:bg-[#a68fcb]"
-                } ${isBooking || isRegistered ? "opacity-80" : ""}`}
-              >
-                {isRegistered ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Check size={12} />
-                    Booked
-                  </span>
-                ) : isBooking ? (
-                  "Booking…"
-                ) : (
-                  `Book ${event.title}`
-                )}
-              </button>
-              <button
-                onClick={() =>
-                  navigate(
-                    `/attendee/${event.title.toLowerCase().replace(/\s+/g, "-")}`,
-                  )
-                }
-                className="mt-2 w-full rounded-[11px] border border-ink/8 py-2.5 text-[11px] font-bold text-ink/55 transition hover:bg-white hover:text-ink"
-              >
-                View details
-              </button>
-            </div>
+                <div
+                  key={event.id}
+                  className="group relative rounded-[22px] border border-white bg-white/70 p-5 shadow-[0_10px_22px_rgba(47,59,61,0.06)] transition hover:-translate-y-1 sm:p-6"
+                >
+                  <div
+                    className={`mb-4 grid size-14 place-items-center rounded-[16px] ${
+                      color === "coral"
+                        ? "bg-[#f6c8b5]"
+                        : color === "mint"
+                          ? "bg-[#dbece1]"
+                          : "bg-[#e8e0f4]"
+                    }`}
+                  >
+                    <CalendarDays
+                      size={26}
+                      className={
+                        color === "coral"
+                          ? "text-[#9f503d]"
+                          : color === "mint"
+                            ? "text-[#39825f]"
+                            : "text-[#6b5792]"
+                      }
+                    />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-ink/35">
+                    {labelOf(event)}
+                  </p>
+                  <h3 className="mt-2 font-display text-[24px] font-bold tracking-[-0.05em]">
+                    {event.title}
+                  </h3>
+                  <p className="mt-1.5 flex items-center gap-1 text-[11px] text-ink/45">
+                    <MapPin size={11} />
+                    {locationOf(event)}
+                    <span className="mx-1 text-ink/20">·</span>
+                    {formatDates(event.startDate, event.endDate)}
+                  </p>
+                  <p className="mt-3 text-[12px] text-ink/55">
+                    {event.description}
+                  </p>
+                  <div className="mt-4 flex items-center gap-3 text-[10px] font-bold text-ink/40">
+                    <span>{topicsLine(event)}</span>
+                    <span className="w-px h-3 bg-ink/8" />
+                    <span>
+                      {isRegistered ? "Ticket saved" : "Open registration"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => void bookEvent(event)}
+                    disabled={isBooking || isRegistered}
+                    className={`mt-4 w-full rounded-[11px] py-2.5 text-[11px] font-black transition ${
+                      color === "coral"
+                        ? "bg-coral text-ink shadow-[0_9px_18px_rgba(240,123,103,0.22)] hover:bg-[#f58c79]"
+                        : color === "mint"
+                          ? "bg-[#8dbea2] text-ink hover:bg-[#7bb38f]"
+                          : "bg-[#b5a2d8] text-ink hover:bg-[#a68fcb]"
+                    } ${isBooking || isRegistered ? "opacity-80" : ""}`}
+                  >
+                    {isRegistered ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Check size={12} />
+                        Booked
+                      </span>
+                    ) : isBooking ? (
+                      "Booking…"
+                    ) : (
+                      `Book ${event.title}`
+                    )}
+                  </button>
+                  <button
+                    onClick={() => void openEventDetails(event)}
+                    className="mt-2 w-full rounded-[11px] border border-ink/8 py-2.5 text-[11px] font-bold text-ink/55 transition hover:bg-white hover:text-ink"
+                  >
+                    View details
+                  </button>
+                </div>
               );
             })
           )}
         </section>
       </main>
+      {detailsEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/25 px-4 py-8 backdrop-blur-sm"
+          onClick={() => setDetailsEvent(null)}
+        >
+          <div
+            className="max-h-[88vh] w-full max-w-[680px] overflow-y-auto rounded-[26px] border border-white bg-[#fffdf8] p-6 shadow-[0_26px_70px_rgba(14,40,49,0.24)] sm:p-8"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-coral">
+                  Event details
+                </p>
+                <h2 className="mt-2 font-display text-[30px] font-bold leading-none tracking-[-0.06em]">
+                  {detailsEvent.title}
+                </h2>
+                <p className="mt-3 flex items-center gap-2 text-[11px] text-ink/50">
+                  <MapPin size={13} /> {locationOf(detailsEvent)} <span>·</span>{" "}
+                  {formatDates(detailsEvent.startDate, detailsEvent.endDate)}
+                </p>
+              </div>
+              <button
+                aria-label="Close event details"
+                onClick={() => setDetailsEvent(null)}
+                className="grid size-8 place-items-center rounded-full bg-ink/5 text-ink/45"
+              >
+                ×
+              </button>
+            </div>
+            <p className="mt-5 text-[13px] leading-6 text-ink/60">
+              {detailsEvent.description || "Event details coming soon."}
+            </p>
+            {detailsLoading ? (
+              <div className="py-12 text-center text-[12px] text-ink/45">
+                Loading schedule and tickets…
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <section className="rounded-[18px] bg-[#e5eee9] p-4">
+                  <h3 className="font-display text-[18px] font-bold tracking-[-0.04em]">
+                    Schedule
+                  </h3>
+                  <div className="mt-3 space-y-3">
+                    {detailsSessions.length ? (
+                      detailsSessions.map(session => (
+                        <div
+                          key={session._id}
+                          className="border-b border-ink/8 pb-3 last:border-0"
+                        >
+                          <p className="text-[11px] font-black">
+                            {session.title}
+                          </p>
+                          <p className="mt-1 text-[10px] text-ink/50">
+                            {fmtTime(session.startTime)}
+                            {session.endTime
+                              ? `–${fmtTime(session.endTime)}`
+                              : ""}{" "}
+                            · {session.roomName || "Room TBA"}
+                          </p>
+                          <p className="mt-1 text-[10px] text-ink/50">
+                            {session.description || session.type || "Session"}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[11px] text-ink/50">
+                        Schedule coming soon.
+                      </p>
+                    )}
+                  </div>
+                </section>
+                <section className="rounded-[18px] bg-[#f6c8b5]/55 p-4">
+                  <h3 className="font-display text-[18px] font-bold tracking-[-0.04em]">
+                    Tickets
+                  </h3>
+                  <div className="mt-3 space-y-3">
+                    {detailsTickets.length ? (
+                      detailsTickets.map(ticket => (
+                        <div
+                          key={ticket._id || ticket.id}
+                          className="flex items-center justify-between border-b border-ink/8 pb-3 last:border-0"
+                        >
+                          <div>
+                            <p className="text-[11px] font-black">
+                              {ticket.name || "Ticket"}
+                            </p>
+                            <p className="mt-1 text-[10px] text-ink/50">
+                              {ticket.remainingQuantity ?? 0} remaining
+                            </p>
+                          </div>
+                          <span className="text-[11px] font-black">
+                            {ticket.price ?? 0} {ticket.currency || "USD"}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[11px] text-ink/50">
+                        Tickets coming soon.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setDetailsEvent(null);
+                void bookEvent(detailsEvent);
+              }}
+              disabled={registeredIds.has(detailsEvent.id)}
+              className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-coral text-[12px] font-black text-ink disabled:opacity-60"
+            >
+              {registeredIds.has(detailsEvent.id)
+                ? "Ticket saved"
+                : "Book a ticket"}{" "}
+              <Ticket size={15} />
+            </button>
+          </div>
+        </div>
+      )}
       <ChatbotPanel
         attendeeMode
         sessions={SESSIONS_FOR_RECOMMENDATIONS}

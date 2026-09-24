@@ -898,7 +898,9 @@ export default function OrganizerModule() {
                         <Select
                           value={eventFilter}
                           onChange={setEventFilter}
-                          options={eventNames.length ? eventNames : ["No events yet"]}
+                          options={
+                            eventNames.length ? eventNames : ["No events yet"]
+                          }
                         />
                       </span>
                     </label>
@@ -921,7 +923,9 @@ export default function OrganizerModule() {
                           step="0.01"
                           type="number"
                           value={newTicketPrice}
-                          onChange={event => setNewTicketPrice(event.target.value)}
+                          onChange={event =>
+                            setNewTicketPrice(event.target.value)
+                          }
                           className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] outline-none focus:border-coral/60"
                         />
                       </label>
@@ -933,7 +937,9 @@ export default function OrganizerModule() {
                           step="1"
                           type="number"
                           value={newTicketQuantity}
-                          onChange={event => setNewTicketQuantity(event.target.value)}
+                          onChange={event =>
+                            setNewTicketQuantity(event.target.value)
+                          }
                           className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] outline-none focus:border-coral/60"
                         />
                       </label>
@@ -944,7 +950,9 @@ export default function OrganizerModule() {
                         <input
                           type="date"
                           value={newTicketSalesStart}
-                          onChange={event => setNewTicketSalesStart(event.target.value)}
+                          onChange={event =>
+                            setNewTicketSalesStart(event.target.value)
+                          }
                           className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] outline-none focus:border-coral/60"
                         />
                       </label>
@@ -953,7 +961,9 @@ export default function OrganizerModule() {
                         <input
                           type="date"
                           value={newTicketSalesEnd}
-                          onChange={event => setNewTicketSalesEnd(event.target.value)}
+                          onChange={event =>
+                            setNewTicketSalesEnd(event.target.value)
+                          }
                           className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] outline-none focus:border-coral/60"
                         />
                       </label>
@@ -1608,6 +1618,15 @@ function EventScopedOperations({
   const [newSponsor, setNewSponsor] = useState("");
   const [localSponsors, setLocalSponsors] = useState<string[]>([]);
   const [speakerMap, setSpeakerMap] = useState<Record<string, string>>({});
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemDescription, setNewItemDescription] = useState("");
+  const [newItemDate, setNewItemDate] = useState("");
+  const [newItemStart, setNewItemStart] = useState("09:00");
+  const [newItemEnd, setNewItemEnd] = useState("10:00");
+  const [newItemCompany, setNewItemCompany] = useState("");
+  const [newItemTier, setNewItemTier] = useState("silver");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const selectedId =
     events.find(event => event.title === selectedTitle)?.id || "";
@@ -1671,7 +1690,7 @@ function EventScopedOperations({
     return () => {
       cancelled = true;
     };
-  }, [kind, selectedId]);
+  }, [kind, selectedId, refreshKey]);
 
   useEffect(() => {
     if (kind !== "venues") return;
@@ -1701,6 +1720,88 @@ function EventScopedOperations({
 
   const selectEvent = (value: string) => {
     setSelectedTitle(value);
+  };
+
+  const signalDashboardRefresh = () => {
+    localStorage.setItem("eventforge:analytics:refresh", String(Date.now()));
+    window.dispatchEvent(new CustomEvent("eventforge:analytics:refresh"));
+  };
+
+  const resetAddForm = () => {
+    setShowAddForm(false);
+    setNewItemName("");
+    setNewItemDescription("");
+    setNewItemDate("");
+    setNewItemStart("09:00");
+    setNewItemEnd("10:00");
+    setNewItemCompany("");
+    setNewItemTier("silver");
+  };
+
+  const saveScopedItem = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedId || !newItemName.trim()) return;
+    try {
+      const slug = `${
+        newItemName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "") || kind
+      }-${Date.now().toString(36)}`;
+      if (kind === "sessions") {
+        const date = newItemDate || new Date().toISOString().slice(0, 10);
+        await api.post("/api/sessions", {
+          eventId: selectedId,
+          title: newItemName.trim(),
+          slug,
+          description:
+            newItemDescription.trim() || `${newItemName.trim()} session.`,
+          type: "Session",
+          startTime: new Date(`${date}T${newItemStart}:00`).toISOString(),
+          endTime: new Date(`${date}T${newItemEnd}:00`).toISOString(),
+          duration: Math.max(
+            1,
+            Math.round(
+              (new Date(`${date}T${newItemEnd}:00`).getTime() -
+                new Date(`${date}T${newItemStart}:00`).getTime()) /
+                60000
+            )
+          ),
+          timezone: "UTC",
+          capacity: 100,
+        });
+      } else if (kind === "speakers") {
+        await api.post("/api/speakers", {
+          eventId: selectedId,
+          name: newItemName.trim(),
+          slug,
+          bio: newItemDescription.trim() || `${newItemName.trim()} speaker.`,
+          title: newItemCompany.trim() || "Speaker",
+          company: newItemCompany.trim() || undefined,
+          topics: [],
+        });
+      } else if (kind === "sponsors") {
+        await api.post("/api/sponsors", {
+          eventId: selectedId,
+          name: newItemName.trim(),
+          slug,
+          company: newItemCompany.trim() || newItemName.trim(),
+          tier: newItemTier,
+          description:
+            newItemDescription.trim() || `${newItemName.trim()} sponsor.`,
+        });
+      }
+      resetAddForm();
+      signalDashboardRefresh();
+      onAction(`${newItemName.trim()} added to ${selectedTitle}.`);
+      setRefreshKey(value => value + 1);
+    } catch (saveError) {
+      onAction(
+        saveError instanceof Error
+          ? saveError.message
+          : `Could not add ${kind.slice(0, -1)}.`
+      );
+    }
   };
 
   const sessions = items.sessions.map(session => ({
@@ -1765,9 +1866,7 @@ function EventScopedOperations({
                   </p>
                 </div>
                 <button
-                  onClick={() =>
-                    onAction(`New session draft created for ${selectedTitle}.`)
-                  }
+                  onClick={() => setShowAddForm(true)}
                   className="flex items-center gap-2 rounded-[11px] bg-coral px-3 py-2 text-[10px] font-black text-ink"
                 >
                   <Plus className="size-3.5" /> Add session
@@ -1955,15 +2054,7 @@ function EventScopedOperations({
                   className="h-10 min-w-0 flex-1 rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] font-medium outline-none focus:border-coral/60"
                 />
                 <button
-                  onClick={() => {
-                    if (!newSponsor.trim()) return;
-                    setLocalSponsors(current => [
-                      ...current,
-                      newSponsor.trim(),
-                    ]);
-                    onAction(`${newSponsor.trim()} added to ${selectedTitle}.`);
-                    setNewSponsor("");
-                  }}
+                  onClick={() => setShowAddForm(true)}
                   className="flex h-10 items-center gap-2 rounded-[11px] bg-coral px-3 text-[10px] font-black text-ink"
                 >
                   <Plus className="size-3.5" /> Add sponsor
@@ -1992,6 +2083,128 @@ function EventScopedOperations({
           )}
         </>
       )}
+      {showAddForm &&
+        (kind === "sessions" || kind === "speakers" || kind === "sponsors") && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/25 px-4 py-8 backdrop-blur-sm"
+            onClick={resetAddForm}
+          >
+            <form
+              className="w-full max-w-[480px] rounded-[24px] border border-white bg-[#fffdf8]/95 p-6 shadow-[0_26px_70px_rgba(14,40,49,0.24)]"
+              onClick={event => event.stopPropagation()}
+              onSubmit={saveScopedItem}
+            >
+              <ModalHeading
+                title={`Add ${kind === "sessions" ? "session" : kind === "speakers" ? "speaker" : "sponsor"}`}
+                onClose={resetAddForm}
+              />
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">
+                  Name
+                  <input
+                    required
+                    value={newItemName}
+                    onChange={event => setNewItemName(event.target.value)}
+                    placeholder={
+                      kind === "sessions"
+                        ? "Opening keynote"
+                        : kind === "speakers"
+                          ? "Jordan Lee"
+                          : "Acme Corp"
+                    }
+                    className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[12px] outline-none focus:border-coral/60"
+                  />
+                </label>
+                {(kind === "speakers" || kind === "sponsors") && (
+                  <label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">
+                    {kind === "sponsors" ? "Company" : "Title / company"}
+                    <input
+                      value={newItemCompany}
+                      onChange={event => setNewItemCompany(event.target.value)}
+                      placeholder={
+                        kind === "sponsors"
+                          ? "Acme Corp"
+                          : "Chief Product Officer"
+                      }
+                      className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[12px] outline-none focus:border-coral/60"
+                    />
+                  </label>
+                )}
+                {kind === "sponsors" && (
+                  <label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">
+                    Tier
+                    <select
+                      value={newItemTier}
+                      onChange={event => setNewItemTier(event.target.value)}
+                      className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 text-[11px] outline-none"
+                    >
+                      <option value="platinum">Platinum</option>
+                      <option value="gold">Gold</option>
+                      <option value="silver">Silver</option>
+                      <option value="bronze">Bronze</option>
+                      <option value="community">Community</option>
+                    </select>
+                  </label>
+                )}
+                {kind === "sessions" && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">
+                      Date
+                      <input
+                        type="date"
+                        value={newItemDate}
+                        onChange={event => setNewItemDate(event.target.value)}
+                        className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-2 text-[11px] outline-none"
+                      />
+                    </label>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">
+                      Start
+                      <input
+                        type="time"
+                        value={newItemStart}
+                        onChange={event => setNewItemStart(event.target.value)}
+                        className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-2 text-[11px] outline-none"
+                      />
+                    </label>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">
+                      End
+                      <input
+                        type="time"
+                        value={newItemEnd}
+                        onChange={event => setNewItemEnd(event.target.value)}
+                        className="mt-1.5 h-10 w-full rounded-[11px] border border-ink/8 bg-white/70 px-2 text-[11px] outline-none"
+                      />
+                    </label>
+                  </div>
+                )}
+                <label className="block text-[10px] font-black uppercase tracking-[0.12em] text-ink/45">
+                  Description
+                  <textarea
+                    required={kind === "sessions" ? false : false}
+                    value={newItemDescription}
+                    onChange={event =>
+                      setNewItemDescription(event.target.value)
+                    }
+                    placeholder="Add useful context"
+                    className="mt-1.5 min-h-20 w-full rounded-[11px] border border-ink/8 bg-white/70 px-3 py-2 text-[12px] outline-none focus:border-coral/60"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-[11px] bg-coral text-[11px] font-black text-ink"
+                >
+                  Save{" "}
+                  {kind === "sessions"
+                    ? "session"
+                    : kind === "speakers"
+                      ? "speaker"
+                      : "sponsor"}{" "}
+                  <Check className="size-4" />
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
     </div>
   );
 }
