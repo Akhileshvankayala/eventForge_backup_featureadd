@@ -249,10 +249,9 @@ export default function Attendee() {
       if (!ttRes.ok) throw new Error("Could not load tickets for this event");
       const types = (await ttRes.json()) as TicketType[];
       const list = Array.isArray(types) ? types : [];
-      const available =
-        list.find(
-          (t) => (t.status ?? "active") === "active" && (t.remainingQuantity ?? 1) > 0,
-        ) ?? list[0];
+      const available = list.find(
+        (t) => (t.status ?? "active") === "active" && (t.remainingQuantity ?? 0) > 0,
+      );
       const ticketTypeId = available?._id ?? available?.id;
       if (!ticketTypeId) {
         toast.error("No tickets available for this event yet");

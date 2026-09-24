@@ -98,7 +98,8 @@ router.post(
     const finalPrice = ticketType.price - discountAmount;
 
     // Decrement ticket quantity
-    await decrementTicketQuantity(_ticketTypeId, 1);
+    const reservedTicket = await decrementTicketQuantity(_ticketTypeId, 1);
+    if (!reservedTicket) return res.status(409).json({ error: "This ticket type just sold out" });
 
     const attendee = await createAttendee({
       eventId: _eventId,

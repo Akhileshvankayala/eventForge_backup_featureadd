@@ -62,10 +62,11 @@ export async function updateTicketType(id: string | ObjectId, data: Partial<Tick
 
 export async function decrementTicketQuantity(id: string | ObjectId, qty: number = 1): Promise<TicketType | null> {
   const _id = typeof id === "string" ? new ObjectId(id) : id;
-  await getCollection<TicketType>(COLLECTION).updateOne(
+  const result = await getCollection<TicketType>(COLLECTION).updateOne(
     { _id, remainingQuantity: { $gte: qty } },
     { $inc: { remainingQuantity: -qty, soldQuantity: qty } }
   );
+  if (result.matchedCount === 0) return null;
   return findTicketTypeById(_id);
 }
 
